@@ -5,11 +5,33 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>行程規劃工具搬家囉</title>
 <meta name="robots" content="noindex">
-<!-- 帶著 ?room=...&cfg=... 等參數一起轉到新網址，舊的共編邀請連結不會壞 -->
-<script>location.replace('https://planngo.web.app/' + location.search + location.hash);</script>
-<meta http-equiv="refresh" content="0; url=https://planngo.web.app/">
+<script>
+/* 轉到新網址 planngo.web.app：
+   1) 帶著 ?room=...&cfg=... 等參數，舊的共編邀請連結不會壞
+   2) 把這個舊網址 localStorage 裡的行程資料/Firebase 設定/暱稱
+      用 #m=base64 一起帶過去，新網址第一次開啟會自動匯入（不會蓋掉既有資料） */
+(function () {
+  var target = 'https://planngo.web.app/' + location.search;
+  try {
+    var payload = {};
+    var v1 = localStorage.getItem('tripPlanner.v1');
+    var fb = localStorage.getItem('tripPlanner.fb');
+    var me = localStorage.getItem('tripPlanner.me');
+    if (v1) payload.v1 = JSON.parse(v1);
+    if (fb) payload.fb = JSON.parse(fb);
+    if (me) payload.me = me;
+    if (payload.v1 || payload.fb || payload.me) {
+      var enc = btoa(unescape(encodeURIComponent(JSON.stringify(payload))))
+        .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      if (enc.length < 1500000) target += '#m=' + enc;
+    }
+  } catch (e) { /* 讀不到就純轉址 */ }
+  location.replace(target);
+})();
+</script>
+<meta http-equiv="refresh" content="1; url=https://planngo.web.app/">
 </head>
 <body style="font-family:sans-serif;text-align:center;padding:60px 20px">
-🧳 網站搬家囉！正在帶你前往 <a href="https://planngo.web.app/">planngo.web.app</a>…
+🧳 網站搬家囉！正在帶你（和你的行程資料）前往 <a href="https://planngo.web.app/">planngo.web.app</a>…
 </body>
 </html>

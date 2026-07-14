@@ -2822,6 +2822,28 @@ function toast(msg) {
   toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
 }
 
+/* ===================== 啟動：舊網址搬家資料匯入 ===================== */
+/* 舊站 trip-7ab77.web.app 的轉址頁會把該網址的行程資料用 #m=base64 帶過來，
+   這裡自動匯入（只補不存在的行程、不覆蓋本地資料；可重複執行不會重複匯入） */
+(function migrateFromOldSite() {
+  if (!location.hash.startsWith('#m=')) return;
+  try {
+    const p = b64decode(location.hash.slice(3));
+    let added = 0;
+    if (p.fb && !getFbConfig()) localStorage.setItem('tripPlanner.fb', JSON.stringify(p.fb));
+    if (p.me && !myName) { myName = String(p.me).slice(0, 20); localStorage.setItem('tripPlanner.me', myName); }
+    if (p.v1 && Array.isArray(p.v1.trips)) {
+      p.v1.trips.forEach(t => {
+        const dup = state.trips.some(x => x.id === t.id || (t.roomId && x.roomId === t.roomId));
+        if (!dup) { state.trips.push(t); added++; }
+      });
+      if (added) save();
+    }
+    if (added) setTimeout(() => toast(`已從舊網址搬來 ${added} 個行程 🎉 之後請改用這個新網址`), 400);
+  } catch (e) { /* 資料壞了就略過，不影響開站 */ }
+  history.replaceState({}, '', location.pathname + location.search);
+})();
+
 /* ===================== 啟動：處理共編邀請連結 ===================== */
 (function bootstrap() {
   const params = new URLSearchParams(location.search);
