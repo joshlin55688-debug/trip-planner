@@ -16,4 +16,4 @@
 
 ## 想在其他專案複製這套「手機可編輯 + 自動部署」流程？
 
-看 [`MOBILE_HANDOFF_WORKFLOW.md`](./MOBILE_HANDOFF_WORKFLOW.md) — 這份是把這個 repo 從「只在電腦開發」升級成「push 到 main 自動上線、手機 Claude 直接接手改」的完整步驟記錄，包含 GitHub Actions 服務帳戶設定的每一步指令，照著做即可套用到任何 Firebase Hosting 專案。
+看 [`電腦手機共用編輯workflow.md`](./電腦手機共用編輯workflow.md) — 這份是把這個 repo 從「只在電腦開發」升級成「push 到 main 自動上線、手機 Claude 直接接手改」的完整步驟記錄，包含 GitHub Actions 服務帳戶設定的每一步指令，照著做即可套用到任何 Firebase Hosting 專案。
