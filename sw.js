@@ -1,10 +1,14 @@
 /* 行程規劃工具 Service Worker：離線可用 */
-const CACHE = 'trip-planner-v2';
+const CACHE = 'trip-planner-v3';
 const ASSETS = [
   './',
   './index.html',
   './manifest.webmanifest',
   './icon.svg',
+  './icon-192.png',
+  './icon-512.png',
+  './icon-512-maskable.png',
+  './apple-touch-icon.png',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
   'https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js',

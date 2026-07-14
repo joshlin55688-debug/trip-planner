@@ -14,7 +14,8 @@
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#3b6ef5">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="icon.svg">
+<!-- iOS 不支援 SVG 圖示，一定要給 PNG，否則「加到主畫面」會是空白圖示 -->
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="行程規劃">
 <meta name="mobile-web-app-capable" content="yes">
@@ -487,6 +488,7 @@
 <div class="topbar">
   <h1><span class="logo">🗺️</span>行程規劃</h1>
   <div class="spacer"></div>
+  <button class="btn small" id="btnInstall" style="display:none" title="把這個工具安裝成 App">📲 安裝</button>
   <button class="btn small" id="btnTips" title="使用小提醒">💡 小提醒</button>
   <button class="btn small" id="btnImport" title="匯入 JSON">📥 匯入</button>
   <button class="btn small" id="btnExport" title="匯出 JSON 備份">📤 匯出</button>
@@ -2848,6 +2850,57 @@ function toast(msg) {
 })();
 
 render();
+
+/* ===================== 安裝成 App（PWA 安裝按鈕） ===================== */
+(function installSetup() {
+  const btn = document.getElementById('btnInstall');
+  // 已經用 App 模式開啟就不用再顯示
+  if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true) return;
+  const ua = navigator.userAgent;
+  // LINE / FB / IG / WeChat 的內建瀏覽器不能安裝 PWA，要引導改用外部瀏覽器開
+  const inApp = /Line\/|FBAN|FBAV|Instagram|MicroMessenger/i.test(ua);
+  const isIOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+  let deferredInstall = null;
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();          // 擋掉瀏覽器自己的小橫幅，改用我們的按鈕
+    deferredInstall = e;
+    btn.style.display = '';
+  });
+  window.addEventListener('appinstalled', () => { btn.style.display = 'none'; toast('已安裝！之後從主畫面開啟就是 App 🎉'); });
+
+  if (inApp || isIOS) btn.style.display = '';   // 這兩種沒有 beforeinstallprompt，用說明視窗引導
+
+  btn.onclick = async () => {
+    if (deferredInstall) {       // Android Chrome / 桌面 Chrome：直接跳系統安裝視窗
+      deferredInstall.prompt();
+      const r = await deferredInstall.userChoice.catch(() => null);
+      if (r && r.outcome === 'accepted') btn.style.display = 'none';
+      return;
+    }
+    if (inApp) {
+      showModal(`
+        <h3>📲 安裝成 App</h3>
+        <p style="font-size:14px;line-height:1.8">你現在是在 <b>LINE / FB 等 App 的內建瀏覽器</b>裡，沒辦法直接安裝。<br><br>
+        請按「<b>⋯</b>」選單（LINE 在右下角），選「<b>用預設瀏覽器開啟</b>」，再按一次「📲 安裝」就可以了。</p>
+        <div class="modal-actions"><button class="btn primary" onclick="closeModal()">知道了</button></div>`);
+      return;
+    }
+    if (isIOS) {
+      showModal(`
+        <h3>📲 加到主畫面（iPhone / iPad）</h3>
+        <ol class="step-list">
+          <li>用 <b>Safari</b> 開啟這個網站</li>
+          <li>點下方的<b>分享</b>按鈕（□ 加上向上箭頭）</li>
+          <li>往下找「<b>加入主畫面</b>」→ 按「新增」</li>
+        </ol>
+        <p style="font-size:13px;color:var(--ink-soft)">之後就能像 App 一樣從主畫面開啟，離線也看得到行程。</p>
+        <div class="modal-actions"><button class="btn primary" onclick="closeModal()">知道了</button></div>`);
+      return;
+    }
+    toast('用瀏覽器選單裡的「安裝」或「加到主畫面」即可安裝');
+  };
+})();
 
 /* PWA：註冊 Service Worker（可安裝、離線可用；需 https 或 localhost） */
 if ('serviceWorker' in navigator) {

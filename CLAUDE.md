@@ -41,6 +41,8 @@
 - **分帳**（`view.page='split'`）：`trip.people` + `trip.expenses`，`computeBalances` 算每人淨額，`settleUp` 用貪婪演算法算出最少筆數的還款方式。
 - **多人即時共編**：見下方獨立章節，**這是整個專案最脆弱、最容易在改動時引入 regression 的部分，改航班/活動/共編邏輯之前務必先讀完這節**。
 - **PWA**：`manifest.webmanifest` + `sw.js`，可安裝到手機主畫面、離線可看已存的行程。改 `sw.js` 記得升版本號（`CACHE` 常數），不然使用者裝置會卡在舊快取。
+  - 頂欄有「📲 安裝」按鈕（`installSetup`）：Android/桌面 Chrome 用 `beforeinstallprompt` 直接跳系統安裝視窗；iOS 沒有這個事件，改顯示「Safari 分享 → 加入主畫面」教學；LINE/FB/IG 內建瀏覽器不能裝 PWA，顯示「用預設瀏覽器開啟」引導。已是 standalone 模式就不顯示。
+  - 圖示：`icon.svg` 是原始檔，PNG（`icon-192/512`、`icon-512-maskable` 滿版、`apple-touch-icon` 180 滿版）是用 Playwright 從 SVG 截圖產生的。**iOS 不支援 SVG 圖示**，`apple-touch-icon` 一定要是 PNG。改了 icon.svg 要重生 PNG 並升 sw 版本。
 - **匯出**：📋複製純文字行程、📤匯出/📥匯入 JSON 備份。
 
 ## 多人即時共編（最容易出問題的部分，改之前先讀）
