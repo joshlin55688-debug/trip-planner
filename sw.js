@@ -1,5 +1,5 @@
 /* 行程規劃工具 Service Worker：離線可用 */
-const CACHE = 'trip-planner-v1';
+const CACHE = 'trip-planner-v2';
 const ASSETS = [
   './',
   './index.html',
@@ -30,8 +30,9 @@ self.addEventListener('fetch', e => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
 
-  // 不攔截即時/動態服務：Firebase 資料庫、地圖圖磚、地理編碼、路線
-  if (/firebaseio\.com|firebasedatabase\.app|tile\.openstreetmap\.org|nominatim|router\.project-osrm\.org/.test(url.hostname)) return;
+  // 不攔截即時/動態服務：Firebase 資料庫、地圖圖磚、地理編碼（photon/nominatim）、路線
+  // photon 一定要排除：它「查無結果」也回 200，被 cache-first 存住會讓那個地點永遠重查不到
+  if (/firebaseio\.com|firebasedatabase\.app|tile\.openstreetmap\.org|photon\.komoot\.io|nominatim|router\.project-osrm\.org/.test(url.hostname)) return;
 
   // 導覽請求：網路優先，離線時回退到快取的 index.html
   if (req.mode === 'navigate') {

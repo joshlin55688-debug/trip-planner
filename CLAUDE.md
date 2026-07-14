@@ -55,6 +55,7 @@
 - **`subscribeRoom` 的 Firebase 回呼要合併延遲套用**（`pendingSnap`/`applyTimer`，`setTimeout(0)` 合併），不能收到快照就立刻 `applyRemote`——因為我們自己連續寫多筆資料時（例如先寫 acts 再寫 flights），中途的同步快照是「半套」狀態，若立即套用會把使用者剛編輯的內容打回舊值再寫回雲端，造成「怎麼改都沒用」的 bug（已修過，別重蹈覆轍）。
 - **刪除/離開共編行程要呼叫 `unsubscribeRoom()`**，否則監聽器還活著，行程刪掉後同伴一有動靜又會把它「復活」。
 - 航班活動有 `flightKey` 標記，不能被一般活動編輯流程覆蓋掉這個標記（否則 `syncFlightActs` 之後認不出它，會產生孤兒重複活動）；`syncFlightActs` 有自我修復機制，會清掉標題為「✈️ 搭機」但沒有 `flightKey` 的孤兒。
+- 共編列有**連線狀態指示**：`initFirebase` 掛了 `.info/connected` 監聽（只掛一次，`initFirebase._connWatch` 防重複），斷線時 `fbConnected=false`、共編列變橘色提醒「改動先存本機」，重連自動變回綠色。Firebase 重連後會自動補送離線期間的寫入，這裡只負責提示。
 
 ## 地理定位（`geocode` 函式，多層 fallback）
 
@@ -69,6 +70,10 @@
 **這套 fallback 是免費方案能做到的極限**——OpenStreetMap 資料庫沒有 Google Maps 那麼完整，有些小型店家/飯店（例如使用者提過的「登瑞酒店 Stage Well Hotel」）在 OSM 根本查不到，這不是程式 bug，是資料源限制。如果使用者持續抱怨定位不準，正確的解法是接 **Google Geocoding API**（他有自己的 Google Cloud 專案 trip-7ab77，可以開這個 API，有免費額度），不是繼續在免費 OSM 方案裡打轉。
 
 批次定位（一次查很多點，例如開地圖或算最短路徑）用 `geocodeSlow`，會依實際用到的服務自動調整等待時間（快取/座標/Plus Code 不等、Photon 等 0.6 秒、Nominatim 等 1.1 秒），比固定等 1.1 秒快很多——**不要把這個改回固定 `sleep(1100)`**。
+
+`geoCache` 的快取規則（修過的 bug，不要改回去）：**「查不到」（null）只在當次頁面有效，不寫進 localStorage**——以前失敗會被永久存起來，一次網路不穩就讓那個地點永遠定位不到；`saveGeo` 存檔時會過濾 null，載入時也會清掉舊版殘留的 null。同理 **`sw.js` 一定要把 `photon.komoot.io` 排除在快取攔截之外**（photon 查無結果也回 200，被 cache-first 存住就永遠重查不到；nominatim/OSRM 本來就有排除）。
+
+開「🗺️ 看地圖」時只等**當天活動**定位完就開圖；候選地點（pool）是開圖後在背景一顆一顆補灰點（`pendingPool`），**不要改回「等全部候選定位完才開圖」**——候選一多（匯入 Takeout）會讓地圖卡一分鐘開不出來。
 
 ## 診斷雲端資料
 

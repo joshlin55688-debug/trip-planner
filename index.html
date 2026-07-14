@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>行程規劃工具</title>
+<meta name="description" content="免費的旅遊行程規劃工具：多人即時共編、每日時間軸、地圖動線、最短路徑、航班出門提醒、旅費分帳，一個網頁全搞定。">
+<meta property="og:title" content="行程規劃工具">
+<meta property="og:description" content="一起規劃旅程！多人即時共編行程、地圖動線、最短路徑、航班與分帳。">
+<meta property="og:type" content="website">
+<!-- 提前跟 CDN 建立連線，縮短第一次載入 Firebase / Leaflet 的等待 -->
+<link rel="preconnect" href="https://www.gstatic.com">
+<link rel="preconnect" href="https://unpkg.com">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#3b6ef5">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -316,6 +323,8 @@
     border-radius: 10px; font-size: 13px; color: #15795a;
   }
   .collab-bar .dot { width: 8px; height: 8px; border-radius: 50%; background: #16a34a; animation: pulse 1.6s infinite; }
+  .collab-bar.off { background: #fff7ed; border-color: #f5d5a0; color: #96570f; }
+  .collab-bar.off .dot { background: #f59e0b; animation: none; }
   @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
   .collab-bar .room { font-weight: 700; letter-spacing: .5px; }
   .collab-bar .spacer { flex: 1; }
@@ -677,9 +686,11 @@ function renderTrip() {
       </div>
       <div class="dates">📅 ${fmtRange(trip)}</div>
       ${trip.roomId ? `
-      <div class="collab-bar">
+      <div class="collab-bar${fbConnected === false ? ' off' : ''}">
         <span class="dot"></span>
-        <span>即時共編中 · 房號 <span class="room">${esc(trip.roomId.slice(1, 7))}</span>${myName ? ` · 你是 ${esc(myName)}` : ''}</span>
+        <span>${fbConnected === false
+          ? '📴 共編連線中斷，改動先存在本機，恢復連線會自動同步'
+          : `即時共編中 · 房號 <span class="room">${esc(trip.roomId.slice(1, 7))}</span>${myName ? ` · 你是 ${esc(myName)}` : ''}`}</span>
         <span class="spacer"></span>
         <button class="btn small" onclick="showShareModal('${trip.id}')">邀請同伴</button>
         <button class="btn small danger-text" onclick="leaveShare('${trip.id}')">離開</button>
@@ -905,15 +916,25 @@ function openOverview() { destroyMap(); view.page = 'overview'; render(); }
 /* ===================== 路線時間估算 ===================== */
 /* 免費服務：Nominatim 地理編碼 + OSRM 路線（皆為 OSM 公開伺服器，無需金鑰） */
 /* 座標快取存進 localStorage：同一地點只查一次，重新整理後地圖/路線秒開 */
+/* 「查不到」（null）只在當次頁面有效，重開就會重試——失敗不能永久寫進快取，
+   否則一次網路不穩就會讓那個地點永遠定位不到（清掉舊版殘留的失敗紀錄） */
 let geoCache = (() => {
-  try { return JSON.parse(localStorage.getItem('tripPlanner.geo') || '{}'); }
+  try {
+    const c = JSON.parse(localStorage.getItem('tripPlanner.geo') || '{}');
+    Object.keys(c).forEach(k => { if (!c[k]) delete c[k]; });
+    return c;
+  }
   catch (e) { return {}; }
 })();
 let geoSaveTimer = null;
 function saveGeo() {
   clearTimeout(geoSaveTimer);
   geoSaveTimer = setTimeout(() => {
-    try { localStorage.setItem('tripPlanner.geo', JSON.stringify(geoCache)); } catch (e) {}
+    try {
+      const ok = {};
+      Object.keys(geoCache).forEach(k => { if (geoCache[k]) ok[k] = geoCache[k]; });
+      localStorage.setItem('tripPlanner.geo', JSON.stringify(ok));
+    } catch (e) {}
   }, 400);
 }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -1100,6 +1121,7 @@ async function estimateRoute(di) {
 /* ===================== 即時共編（Firebase Realtime Database） ===================== */
 let db = null, activeRoomRef = null, activeRoomId = null;
 let pendingSnap = null, applyTimer = null;  // 合併同步回呼，避免中途覆蓋本機正在進行的編輯
+let fbConnected = null;   // null=還不知道、true=連線中、false=斷線（斷線時共編列會提醒）
 let myName = localStorage.getItem('tripPlanner.me') || '';
 
 /* URL-safe base64：避免 +/= 在網址裡被改掉 */
@@ -1123,6 +1145,19 @@ function initFirebase(cfg) {
     if (!firebase.apps.length) firebase.initializeApp(cfg);
     db = firebase.database();
     localStorage.setItem('tripPlanner.fb', JSON.stringify(cfg));
+    // 監看連線狀態：斷線時在共編列提醒（Firebase 重連後會自動補送離線時的寫入）
+    if (!initFirebase._connWatch) {
+      initFirebase._connWatch = true;
+      try {
+        db.ref('.info/connected').on('value', s => {
+          const ok = !!s.val();
+          if (fbConnected === ok) return;
+          fbConnected = ok;
+          const t = getTrip(view.tripId);
+          if (t && t.roomId && !document.querySelector('.modal-mask')) render();
+        });
+      } catch (e) {}
+    }
     return true;
   } catch (e) { toast('Firebase 設定有誤：' + e.message); return false; }
 }
@@ -1693,11 +1728,11 @@ async function initDayMap(trip, di) {
   pool.forEach(p => { if (p.lat != null && p.loc && geoCache[p.loc] === undefined) geoCache[p.loc] = { lat: p.lat, lon: p.lon }; });
   saveGeo();
 
-  const needGeo = acts.filter(a => geoCache[a.loc] === undefined).length + pool.filter(p => geoCache[p.loc] === undefined).length;
+  const needGeo = acts.filter(a => geoCache[a.loc] === undefined).length;
   if (needGeo) box.innerHTML = '<div class="map-loading">🛰️ 定位地點中…（第一次較慢）</div>';
 
+  // 只等「當天活動」定位完就開圖；候選地點在地圖出現後才於背景慢慢補，不擋地圖顯示
   for (const a of acts) { if (geoCache[a.loc] === undefined) await geocodeSlow(a.loc); }
-  for (const p of pool) { if (geoCache[p.loc] === undefined) await geocodeSlow(p.loc); }
   // 期間使用者可能已切換畫面
   if (view.tripId !== trip.id || view.dayIndex !== di || !view.showMap) return;
   if (!document.getElementById('mapBox')) return;
@@ -1709,11 +1744,15 @@ async function initDayMap(trip, di) {
 
   const bounds = [];       // 自動縮放只看當天活動，候選點不算（避免被定位到遠方的候選拉到全世界）
   const poolBounds = [];
-  // 候選地點（灰點）
+  const addPoolPin = (p, c) => L.marker([c.lat, c.lon], { icon: poolIcon() }).addTo(leafMap)
+    .bindPopup('📍 候選地點<br><b>' + esc(p.name) + '</b>', { autoPanPadding: [30, 60], keepInView: true });
+  // 候選地點（灰點）：已有座標的直接放；還沒定位過的先記著，開圖後在背景補
+  const pendingPool = [];
   pool.forEach(p => {
     const c = geoCache[p.loc];
+    if (c === undefined) { pendingPool.push(p); return; }
     if (!c) return;
-    L.marker([c.lat, c.lon], { icon: poolIcon() }).addTo(leafMap).bindPopup('📍 候選地點<br><b>' + esc(p.name) + '</b>', { autoPanPadding: [30, 60], keepInView: true });
+    addPoolPin(p, c);
     poolBounds.push([c.lat, c.lon]);
   });
   // 當天有「地點」的活動：有座標的照位置放；查不到座標的放到地圖中央，讓你拖曳定位
@@ -1819,7 +1858,27 @@ async function initDayMap(trip, di) {
 
   redrawLine();
 
-  if (!placed.length && !unplaced.length && !poolBounds.length) {
+  // 背景定位剩下的候選地點，好一個補一個灰點（切換畫面或重開地圖會自動停止）
+  if (pendingPool.length) {
+    const myMap = leafMap;
+    (async () => {
+      const bg = [];
+      for (const p of pendingPool) {
+        if (leafMap !== myMap) return;
+        if (geoCache[p.loc] === undefined) await geocodeSlow(p.loc);
+        if (leafMap !== myMap) return;
+        const c = geoCache[p.loc];
+        if (c) { addPoolPin(p, c); bg.push([c.lat, c.lon]); }
+      }
+      // 當天沒有任何可定位的活動時，補完才把視野帶到候選點
+      if (!fit.length && bg.length && leafMap === myMap) {
+        if (bg.length === 1) leafMap.setView(bg[0], 13);
+        else leafMap.fitBounds(bg, { padding: [34, 34], maxZoom: 15 });
+      }
+    })();
+  }
+
+  if (!placed.length && !unplaced.length && !poolBounds.length && !pendingPool.length) {
     const note = document.createElement('div');
     note.className = 'map-loading'; note.style.position = 'absolute'; note.style.inset = '0'; note.style.zIndex = 500;
     note.style.background = 'rgba(238,242,247,.85)'; note.textContent = '這天還沒有可定位的地點，加上有「地點」的活動或匯入候選地點吧';
