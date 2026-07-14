@@ -2,7 +2,7 @@
 
 單一 HTML 檔的旅遊行程規劃工具：多人即時共編、地圖與最短路徑、航班通勤估算、分帳。
 
-**正式網址：https://trip-7ab77.web.app**（push 到 `main` 會自動部署到這裡）
+**正式網址：https://planngo.web.app**（push 到 `main` 會自動部署到這裡）
 
 給接手開發的 Claude（尤其是手機端全新對話）：**先讀 [`CLAUDE.md`](./CLAUDE.md)**，裡面有完整的架構、已知雷區、驗證流程與部署方式。
 

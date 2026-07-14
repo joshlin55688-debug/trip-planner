@@ -1,5 +1,11 @@
 {
-  "projects": {
-    "default": "trip-7ab77"
+  "projects": { "default": "trip-7ab77" },
+  "targets": {
+    "trip-7ab77": {
+      "hosting": {
+        "app": ["planngo"],
+        "legacy": ["trip-7ab77"]
+      }
+    }
   }
 }

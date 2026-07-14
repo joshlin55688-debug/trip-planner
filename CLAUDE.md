@@ -2,7 +2,7 @@
 
 這是單一 HTML 檔的旅遊行程規劃工具，正式檔是 **`index.html`**（唯一要改的檔案；`trip_planner.html` 只是轉址到 index.html 的相容 stub，不要改它）。無建置流程、無 npm 套件、無框架 —— 純 HTML + CSS + 內嵌 `<script>`，直接用文字編輯器改。
 
-**正式網址**：https://trip-7ab77.web.app
+**正式網址**：https://planngo.web.app
 **Firebase 專案**：trip-7ab77（Realtime Database + Hosting）
 **Repo**：這個 repo 獨立於使用者其他專案，push 到 `main` 會自動部署上線（見下方「部署」）。
 
@@ -22,7 +22,7 @@
    - 用瀏覽器工具的 `eval`／`javascript_tool` 直接呼叫頁面裡的 JS 函式來重現/驗證 bug（這個專案大量函式都掛在 `window` 上，例如 `optimizeDay`、`applyRemote`、`geocode`、`computeBalances`），比截圖快很多且不會被 UI 動畫卡住。
    - 每次修完 bug，**用真實資料流程重現一次原本的問題，確認修好**，不要只看程式碼邏輯覺得「應該對了」。
    - 驗證完記得清掉測試用的假行程資料（`state.trips = []; save();` 之類），不要把測試垃圾留給使用者。
-3. **部署**：這個 repo 接了 GitHub Actions，**push 到 `main` 分支就會自動 `firebase deploy` 上線**，不需要手動跑 `firebase deploy`。改完、測完、commit、push 即可，數分鐘內 https://trip-7ab77.web.app 就會更新。
+3. **部署**：這個 repo 接了 GitHub Actions，**push 到 `main` 分支就會自動 `firebase deploy` 上線**，不需要手動跑 `firebase deploy`。改完、測完、commit、push 即可，數分鐘內 https://planngo.web.app 就會更新。
    - 如果你的環境沒有 push 權限或沒有 GitHub Actions 可跑（例如某些沙盒環境），才需要手動用 `firebase deploy --only hosting`（前提是有登入 `firebase login`，這台裝置本機平常已登入，但雲端沙盒環境不會有這個登入狀態，所以優先用 push 觸發部署）。
    - 部署設定檔：`firebase.json`（`public: "."`，把整個資料夾當靜態網站根目錄）、`.firebaserc`（綁定專案 trip-7ab77）。
 
