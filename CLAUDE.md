@@ -24,7 +24,8 @@
    - 驗證完記得清掉測試用的假行程資料（`state.trips = []; save();` 之類），不要把測試垃圾留給使用者。
 3. **部署**：這個 repo 接了 GitHub Actions，**push 到 `main` 分支就會自動 `firebase deploy` 上線**，不需要手動跑 `firebase deploy`。改完、測完、commit、push 即可，數分鐘內 https://planngo.web.app 就會更新。
    - 如果你的環境沒有 push 權限或沒有 GitHub Actions 可跑（例如某些沙盒環境），才需要手動用 `firebase deploy --only hosting`（前提是有登入 `firebase login`，這台裝置本機平常已登入，但雲端沙盒環境不會有這個登入狀態，所以優先用 push 觸發部署）。
-   - 部署設定檔：`firebase.json`（`public: "."`，把整個資料夾當靜態網站根目錄）、`.firebaserc`（綁定專案 trip-7ab77）。
+   - 部署設定檔：`firebase.json` + `.firebaserc` 是**多站台**設定——target `app` → 站台 `planngo`（正式站，整個資料夾當靜態根目錄、排除 `legacy/**`），target `legacy` → 站台 `trip-7ab77`（只放 `legacy/` 轉址頁）。push 到 main 兩個站台會一起部署。**不要把 legacy 轉址頁拿掉**：它負責把舊網址的使用者（含 `?room=` 邀請參數與 localStorage 資料，用 `#m=` 打包）帶到新網址，新站 `migrateFromOldSite` 會自動匯入（只補不存在的行程、可重複執行）。
+   - 可重複使用的流程指令在 `.claude/commands/`（`/ship-app`、`/rename-site`）；系統總覽見 `工作流程手冊.md`。
 
 ## 這個工具長什麼樣子（功能總覽）
 

@@ -9,11 +9,14 @@
 ## 檔案結構
 
 - `index.html` — 唯一的原始碼檔案（HTML + CSS + JS 全部內嵌，無建置流程）
-- `firebase.json` / `.firebaserc` — Firebase Hosting 部署設定
+- `firebase.json` / `.firebaserc` — Firebase Hosting 多站台部署設定（app → planngo、legacy → 舊網址轉址頁）
+- `legacy/` — 舊網址 trip-7ab77.web.app 的轉址頁（含 localStorage 資料搬家與退役 sw）
 - `database.rules.json` — Realtime Database 安全規則
-- `manifest.webmanifest` / `sw.js` / `icon.svg` — PWA 設定
+- `manifest.webmanifest` / `sw.js` / `icon.svg` + 各 PNG 圖示 — PWA 設定
 - `.github/workflows/` — 自動部署設定
+- `.claude/commands/` — 可重複使用的指令：`/ship-app`（App 化）、`/rename-site`（換網址）
 
-## 想在其他專案複製這套「手機可編輯 + 自動部署」流程？
+## 工作流程文件
 
-看 [`電腦手機共用編輯workflow.md`](./電腦手機共用編輯workflow.md) — 這份是把這個 repo 從「只在電腦開發」升級成「push 到 main 自動上線、手機 Claude 直接接手改」的完整步驟記錄，包含 GitHub Actions 服務帳戶設定的每一步指令，照著做即可套用到任何 Firebase Hosting 專案。
+- 📖 [`工作流程手冊.md`](./工作流程手冊.md) — **總目錄**：電腦手機互聯系統怎麼運作、四大流程（日常改版／新專案上架／App 化／換網址）、全系統雷區、指令小抄
+- 🔧 [`電腦手機共用編輯workflow.md`](./電腦手機共用編輯workflow.md) — 新專案上架的完整技術步驟（GitHub repo 化、服務帳戶、自動部署）
