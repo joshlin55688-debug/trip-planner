@@ -1,0 +1,14 @@
+# PR 會自動產生一個預覽網址，方便合併前先看效果，不影響正式站
+name: Deploy to Firebase Hosting on PR
+on: pull_request
+jobs:
+  build_and_preview:
+    if: "${{ github.event.pull_request.head.repo.full_name == github.repository }}"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: "${{ secrets.GITHUB_TOKEN }}"
+          firebaseServiceAccount: "${{ secrets.FIREBASE_SERVICE_ACCOUNT_TRIP_7AB77 }}"
+          projectId: trip-7ab77
