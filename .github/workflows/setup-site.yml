@@ -1,0 +1,21 @@
+# 一次性工具：用部署服務帳號建立新的 Hosting 站名（planngo.web.app）
+# 跑完就可以刪掉這個檔案
+name: Setup hosting site (one-off)
+on: workflow_dispatch
+jobs:
+  create:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Write service account key
+        env:
+          SA_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_TRIP_7AB77 }}
+        run: printf '%s' "$SA_JSON" > "$RUNNER_TEMP/sa.json"
+      - name: Create site planngo
+        continue-on-error: true
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
+        run: npx -y firebase-tools@13 hosting:sites:create planngo --project trip-7ab77
+      - name: List sites
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
+        run: npx -y firebase-tools@13 hosting:sites:list --project trip-7ab77
