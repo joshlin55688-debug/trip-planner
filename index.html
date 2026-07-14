@@ -1,0 +1,2799 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>行程規劃工具</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#3b6ef5">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="行程規劃">
+<meta name="mobile-web-app-capable" content="yes">
+<style>
+  :root {
+    --bg: #f4f6fb;
+    --card: #ffffff;
+    --ink: #1e2430;
+    --ink-soft: #6b7384;
+    --line: #e3e7f0;
+    --primary: #3b6ef5;
+    --primary-soft: #e8eefe;
+    --danger: #e25555;
+    --radius: 14px;
+    --shadow: 0 2px 10px rgba(30,40,70,.07);
+    --cat-sight: #3b6ef5;
+    --cat-food: #e8843c;
+    --cat-transport: #18a999;
+    --cat-hotel: #8b5cf6;
+    --cat-shop: #d6489a;
+    --cat-other: #7a8499;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", "Microsoft JhengHei", "PingFang TC", sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+  }
+  button { font-family: inherit; cursor: pointer; }
+  input, select, textarea { font-family: inherit; font-size: 15px; }
+
+  .topbar {
+    background: var(--card);
+    border-bottom: 1px solid var(--line);
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+  .topbar h1 { font-size: 19px; letter-spacing: .5px; }
+  .topbar h1 .logo { margin-right: 6px; }
+  .topbar .spacer { flex: 1; }
+  .btn {
+    border: 1px solid var(--line);
+    background: var(--card);
+    color: var(--ink);
+    border-radius: 10px;
+    padding: 8px 14px;
+    font-size: 14px;
+    transition: .15s;
+    white-space: nowrap;
+  }
+  .btn:hover { border-color: var(--primary); color: var(--primary); }
+  .btn.primary {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+  }
+  .btn.primary:hover { filter: brightness(1.08); color:#fff; }
+  .btn.danger-text { color: var(--danger); }
+  .btn.danger-text:hover { border-color: var(--danger); }
+  .btn.small { padding: 5px 10px; font-size: 13px; border-radius: 8px; }
+
+  .container { max-width: 1040px; margin: 0 auto; padding: 24px 16px 80px; }
+
+  /* ===== 行程列表頁 ===== */
+  .trip-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; margin-top: 18px; }
+  .trip-card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 18px;
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    transition: .15s;
+    position: relative;
+  }
+  .trip-card:hover { transform: translateY(-2px); border-color: var(--primary); }
+  .trip-card h3 { font-size: 17px; margin-bottom: 6px; padding-right: 28px; word-break: break-all; }
+  .trip-card .dates { color: var(--ink-soft); font-size: 13px; margin-bottom: 10px; }
+  .trip-card .meta { display: flex; gap: 14px; font-size: 13px; color: var(--ink-soft); }
+  .trip-card .del-trip {
+    position: absolute; top: 12px; right: 12px;
+    border: none; background: none; color: #c2c8d6; font-size: 16px; padding: 4px;
+  }
+  .trip-card .del-trip:hover { color: var(--danger); }
+  .empty-hint {
+    text-align: center; color: var(--ink-soft); padding: 70px 20px;
+    background: var(--card); border: 1px dashed var(--line); border-radius: var(--radius); margin-top: 18px;
+  }
+  .empty-hint .big { font-size: 42px; margin-bottom: 12px; }
+
+  /* ===== 行程詳細頁 ===== */
+  .trip-header {
+    background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 18px 20px; box-shadow: var(--shadow); margin-bottom: 16px;
+  }
+  .trip-header .row1 { display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap; }
+  .trip-header h2 { font-size: 21px; flex: 1; min-width: 200px; word-break: break-all; }
+  .trip-header .dates { color: var(--ink-soft); font-size: 14px; margin-top: 6px; }
+  .budget-bar { margin-top: 14px; }
+  .budget-bar .labels { display: flex; justify-content: space-between; font-size: 13px; color: var(--ink-soft); margin-bottom: 5px; }
+  .budget-bar .labels b { color: var(--ink); }
+  .budget-track { height: 8px; background: var(--primary-soft); border-radius: 99px; overflow: hidden; }
+  .budget-fill { height: 100%; background: var(--primary); border-radius: 99px; transition: width .3s; }
+  .budget-fill.over { background: var(--danger); }
+
+  .day-tabs {
+    display: flex; gap: 8px; overflow-x: auto; padding: 4px 2px 10px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .day-tab {
+    border: 1px solid var(--line); background: var(--card); border-radius: 10px;
+    padding: 8px 14px; font-size: 14px; flex: 0 0 auto; text-align: center; transition: .15s;
+  }
+  .day-tab .wd { display: block; font-size: 11px; color: var(--ink-soft); margin-top: 2px; }
+  .day-tab.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .day-tab.active .wd { color: rgba(255,255,255,.8); }
+
+  .day-panel {
+    background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 18px 20px;
+  }
+  .day-panel .day-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+  .day-panel .day-head h3 { font-size: 17px; flex: 1; }
+  .day-cost { font-size: 14px; color: var(--ink-soft); }
+  .day-cost b { color: var(--ink); }
+
+  /* 時間軸 */
+  .timeline { position: relative; }
+  .act-item {
+    display: flex; gap: 14px; padding: 12px 8px; border-radius: 10px;
+    position: relative; transition: background .15s;
+  }
+  .act-item:hover { background: #f8f9fd; }
+  .act-item.dragging { opacity: .4; }
+  .act-item.drag-over { box-shadow: 0 -2px 0 var(--primary); }
+  .act-time {
+    flex: 0 0 56px; text-align: right; font-size: 14px; font-weight: 600;
+    color: var(--ink); padding-top: 2px; font-variant-numeric: tabular-nums;
+  }
+  .act-time.none { color: #c2c8d6; font-weight: 400; }
+  .act-rail { flex: 0 0 14px; display: flex; flex-direction: column; align-items: center; }
+  .act-dot { width: 12px; height: 12px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+  .act-line { width: 2px; flex: 1; background: var(--line); margin-top: 4px; }
+  .act-item:last-child .act-line { display: none; }
+  .act-body { flex: 1; min-width: 0; }
+  .act-title-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .act-title { font-size: 15.5px; font-weight: 600; word-break: break-all; }
+  .act-cat-badge {
+    font-size: 11.5px; padding: 2px 8px; border-radius: 99px; color: #fff; flex-shrink: 0;
+  }
+  .act-cost-badge { font-size: 13px; color: var(--ink-soft); }
+  .act-end-time { display: block; font-size: 11px; color: var(--ink-soft); font-weight: 400; margin-top: 1px; }
+  .dur-badge { font-size: 11.5px; color: var(--ink-soft); background: #eef2fa; border-radius: 99px; padding: 1px 8px; flex-shrink: 0; }
+  .overlap-warn { font-size: 12.5px; color: var(--danger); margin-top: 3px; font-weight: 600; }
+  .act-note { font-size: 13.5px; color: var(--ink-soft); margin-top: 4px; white-space: pre-wrap; word-break: break-all; }
+  .act-loc { font-size: 13px; color: var(--ink-soft); margin-top: 3px; }
+  .act-loc a { color: var(--primary); text-decoration: none; }
+  .act-loc a:hover { text-decoration: underline; }
+  .act-tools { display: flex; gap: 4px; opacity: 0; transition: .15s; flex-shrink: 0; }
+  .act-item:hover .act-tools, .act-item:focus-within .act-tools { opacity: 1; }
+  .icon-btn {
+    border: none; background: none; color: var(--ink-soft); font-size: 15px;
+    padding: 4px 6px; border-radius: 6px;
+  }
+  .icon-btn:hover { background: var(--primary-soft); color: var(--primary); }
+  .icon-btn.danger:hover { background: #fdecec; color: var(--danger); }
+  .icon-btn:disabled { opacity: .25; cursor: default; }
+  .icon-btn:disabled:hover { background: none; color: var(--ink-soft); }
+  .drag-handle { cursor: grab; color: #c2c8d6; }
+  .drag-handle:active { cursor: grabbing; }
+  .day-empty { text-align: center; color: var(--ink-soft); padding: 30px 10px; font-size: 14px; }
+
+  /* 路線時間 chip（夾在兩個活動之間） */
+  .travel-row { display: flex; gap: 14px; padding: 0 8px; }
+  .travel-row .t-spacer { flex: 0 0 56px; }
+  .travel-row .t-rail { flex: 0 0 14px; display: flex; justify-content: center; }
+  .travel-row .t-rail i { width: 2px; background: var(--line); display: block; }
+  .travel-pill {
+    font-size: 12.5px; color: var(--ink-soft); background: #eef2fa;
+    border-radius: 99px; padding: 4px 12px; margin: 2px 0;
+  }
+
+  /* ===== 行程表總覽 ===== */
+  .ov-hero {
+    background: linear-gradient(135deg, #3b6ef5 0%, #7c5cf6 60%, #a35cf6 100%);
+    color: #fff; border-radius: 18px; padding: 28px 26px; margin-bottom: 18px;
+    box-shadow: 0 6px 22px rgba(80,90,220,.25);
+  }
+  .ov-hero h2 { font-size: 26px; letter-spacing: .5px; word-break: break-all; }
+  .ov-hero .sub { opacity: .88; margin-top: 8px; font-size: 14.5px; }
+  .ov-stats { display: flex; gap: 26px; margin-top: 18px; flex-wrap: wrap; }
+  .ov-stat b { font-size: 21px; display: block; font-variant-numeric: tabular-nums; }
+  .ov-stat span { font-size: 12.5px; opacity: .82; }
+  .ov-day {
+    background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 18px 20px; margin-bottom: 14px; box-shadow: var(--shadow);
+  }
+  .ov-day-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+  .ov-day-head h3 { font-size: 16.5px; }
+  .ov-day-head .chip {
+    font-size: 12px; background: var(--primary-soft); color: var(--primary);
+    border-radius: 99px; padding: 3px 11px;
+  }
+  .ov-day-head .spend { margin-left: auto; font-size: 13px; color: var(--ink-soft); }
+  @media print {
+    .ov-hero { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .ov-day { page-break-inside: avoid; }
+  }
+  .add-act-btn {
+    width: 100%; margin-top: 12px; border: 1.5px dashed var(--line); background: none;
+    border-radius: 10px; padding: 11px; color: var(--ink-soft); font-size: 14.5px; transition: .15s;
+  }
+  .add-act-btn:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-soft); }
+
+  /* ===== Modal ===== */
+  .modal-mask {
+    position: fixed; inset: 0; background: rgba(20,26,40,.45); z-index: 100;
+    display: flex; align-items: center; justify-content: center; padding: 16px;
+  }
+  .modal {
+    background: var(--card); border-radius: 16px; width: 100%; max-width: 460px;
+    padding: 22px; max-height: 92vh; overflow-y: auto;
+  }
+  .modal h3 { font-size: 18px; margin-bottom: 16px; }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 13.5px; color: var(--ink-soft); margin-bottom: 5px; }
+  .field input, .field select, .field textarea {
+    width: 100%; border: 1px solid var(--line); border-radius: 9px; padding: 9px 11px;
+    background: #fbfcfe; outline: none; transition: .15s;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus {
+    border-color: var(--primary); background: #fff;
+  }
+  .field textarea { resize: vertical; min-height: 64px; }
+  .field-row { display: flex; gap: 10px; }
+  .field-row .field { flex: 1; }
+  .cat-picker { display: flex; gap: 7px; flex-wrap: wrap; }
+  .cat-chip {
+    border: 1.5px solid var(--line); background: #fbfcfe; border-radius: 99px;
+    padding: 6px 13px; font-size: 13.5px; transition: .15s; color: var(--ink-soft);
+  }
+  .cat-chip.sel { color: #fff; border-color: transparent; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
+  .tips-list { list-style: none; }
+  .tips-list li {
+    display: flex; gap: 10px; padding: 9px 0; font-size: 14px; line-height: 1.65;
+    border-bottom: 1px dashed var(--line);
+  }
+  .tips-list li:last-child { border-bottom: none; }
+  .tips-list .t-icon { flex-shrink: 0; }
+  .tips-list b { color: var(--ink); }
+
+  /* ===== 航班卡 ===== */
+  .flights-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+  .flight-card {
+    border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; background: #fbfcff;
+    position: relative;
+  }
+  .flight-card .fc-tag {
+    font-size: 11.5px; font-weight: 600; letter-spacing: .5px; padding: 2px 9px; border-radius: 99px;
+    color: #fff; display: inline-block; margin-bottom: 10px;
+  }
+  .flight-card.out .fc-tag { background: var(--cat-transport); }
+  .flight-card.back .fc-tag { background: var(--cat-hotel); }
+  .flight-card .fc-no { font-size: 13px; color: var(--ink-soft); margin-left: 8px; }
+  .fc-route { display: flex; align-items: center; gap: 10px; }
+  .fc-end { text-align: center; min-width: 0; flex: 1; }
+  .fc-end .ap { font-size: 15px; font-weight: 700; word-break: break-all; }
+  .fc-end .tm { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .fc-end .dt { font-size: 11.5px; color: var(--ink-soft); }
+  .fc-mid { flex: 0 0 auto; text-align: center; color: var(--cat-transport); }
+  .fc-mid .pl { font-size: 11.5px; color: var(--ink-soft); white-space: nowrap; }
+  .fc-mid .arrow { font-size: 18px; line-height: 1; }
+  .fc-leave {
+    margin-top: 12px; padding-top: 11px; border-top: 1px dashed var(--line);
+    font-size: 13px; line-height: 1.7; color: var(--ink-soft);
+  }
+  .fc-leave .big { font-size: 15px; font-weight: 700; color: var(--primary); }
+  .fc-leave .warn { color: var(--danger); font-weight: 600; }
+  .flight-card .fc-edit {
+    position: absolute; top: 11px; right: 11px; border: none; background: none;
+    color: #c2c8d6; font-size: 14px; padding: 3px 5px; border-radius: 6px;
+  }
+  .flight-card .fc-edit:hover { background: var(--primary-soft); color: var(--primary); }
+  .flight-empty {
+    grid-column: 1 / -1; text-align: center; color: var(--ink-soft); font-size: 13.5px;
+    border: 1.5px dashed var(--line); border-radius: 12px; padding: 16px;
+  }
+  .flight-empty .btn { margin-top: 8px; }
+  .flight-sub { font-size: 13px; color: var(--ink-soft); margin: 4px 0 2px; font-weight: 600; }
+
+  /* ===== 共編 / 貢獻者 ===== */
+  .by-badge {
+    font-size: 11px; background: #eef2fa; color: #5b677e;
+    border-radius: 99px; padding: 1px 8px; flex-shrink: 0;
+  }
+  .collab-bar {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    margin-top: 12px; padding: 8px 12px; background: #ecfdf5; border: 1px solid #b7e8d2;
+    border-radius: 10px; font-size: 13px; color: #15795a;
+  }
+  .collab-bar .dot { width: 8px; height: 8px; border-radius: 50%; background: #16a34a; animation: pulse 1.6s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+  .collab-bar .room { font-weight: 700; letter-spacing: .5px; }
+  .collab-bar .spacer { flex: 1; }
+  .share-link {
+    width: 100%; border: 1px solid var(--line); border-radius: 9px; padding: 9px 11px;
+    background: #fbfcfe; font-size: 12.5px; font-family: monospace; word-break: break-all;
+  }
+  .step-list { font-size: 13.5px; line-height: 1.7; color: var(--ink-soft); padding-left: 18px; margin: 6px 0 14px; }
+  .step-list a { color: var(--primary); }
+  .step-list code { background: #eef2fa; padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
+
+  /* ===== 最短路徑結果 ===== */
+  .opt-summary {
+    margin: 4px 0 12px; padding: 10px 14px; background: var(--primary-soft);
+    border-radius: 10px; font-size: 13.5px; color: var(--primary); line-height: 1.6;
+  }
+  .opt-summary b { font-weight: 700; }
+
+  /* ===== 兩欄版面 + 候選地點側欄 ===== */
+  .trip-layout { display: grid; grid-template-columns: 1fr 400px; gap: 16px; align-items: start; }
+  .trip-main { min-width: 0; }
+  .tray {
+    background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 14px 15px; position: sticky; top: 76px;
+  }
+  .tray h3 { font-size: 15px; display: flex; align-items: center; gap: 6px; }
+  .tray .hint { font-size: 12px; color: var(--ink-soft); margin: 6px 0 10px; line-height: 1.5; }
+  .tray-actions { display: flex; gap: 7px; margin-bottom: 10px; }
+  .tray-actions .btn { flex: 1; padding: 7px; font-size: 13px; }
+  .tray-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-height: 64vh; overflow-y: auto; padding-right: 2px; }
+  .tray-card {
+    border: 1px solid var(--line); border-radius: 10px; padding: 9px 10px; background: #fbfcff;
+    cursor: grab; transition: .12s; position: relative; display: flex; flex-direction: column;
+  }
+  .tray-card:hover { border-color: var(--primary); box-shadow: 0 2px 8px rgba(60,90,220,.1); }
+  .tray-card:active { cursor: grabbing; }
+  .tray-card.dragging { opacity: .45; }
+  .tray-card .tc-name { font-size: 13.5px; font-weight: 600; word-break: break-all; padding-right: 16px; line-height: 1.35; }
+  .tray-card .tc-sub { font-size: 11.5px; color: var(--ink-soft); margin-top: 2px; word-break: break-all; }
+  .tray-card .tc-row { display: flex; gap: 6px; margin-top: auto; padding-top: 7px; }
+  .tray-card .tc-row .btn { padding: 4px 8px; font-size: 12px; border-radius: 7px; width: 100%; text-align: center; }
+  .tray-card .tc-del {
+    position: absolute; top: 6px; right: 7px; border: none; background: none; color: #c2c8d6;
+    font-size: 13px; padding: 2px 4px; border-radius: 5px;
+  }
+  .tray-card .tc-del:hover { color: var(--danger); background: #fdecec; }
+  .tray-empty { font-size: 12.5px; color: var(--ink-soft); text-align: center; padding: 22px 8px; border: 1.5px dashed var(--line); border-radius: 10px; }
+  .tray-badge { font-size: 11px; background: var(--primary-soft); color: var(--primary); border-radius: 99px; padding: 1px 8px; }
+  /* 拖放目標高亮 */
+  .day-tab.drop-active, .day-panel.drop-active { outline: 2px dashed var(--primary); outline-offset: 2px; background: var(--primary-soft); }
+
+  @media (max-width: 900px) {
+    .trip-layout { grid-template-columns: 1fr; }
+    .tray { position: static; order: -1; }
+    .tray-list { max-height: 48vh; }
+  }
+
+  /* ===== 地圖 ===== */
+  .map-box { height: 440px; border-radius: 12px; overflow: hidden; margin-bottom: 8px; border: 1px solid var(--line); background: #eef2f7; }
+  .map-loading { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--ink-soft); font-size: 14px; text-align: center; padding: 0 16px; }
+  .map-legend { font-size: 12px; color: var(--ink-soft); margin: 0 0 14px; display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+  .map-legend .lg-line { display: inline-block; width: 20px; height: 0; border-top: 3px dashed var(--primary); }
+  .map-legend .lg-pool { display: inline-block; width: 11px; height: 11px; border-radius: 50%; background: #fff; border: 2px solid #8a93a6; }
+  .pin-num {
+    width: 26px; height: 26px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg);
+    display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700;
+    font-size: 13px; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.35);
+  }
+  .pin-num span { transform: rotate(45deg); }
+  .pin-pool { width: 12px; height: 12px; border-radius: 50%; background: #fff; border: 2.5px solid #8a93a6; box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+  .pin-place { background: #e8843c !important; border-style: dashed !important; animation: pulse 1.3s infinite; }
+  /* 手機：長按地圖不要變成選字，拖曳圖釘才順 */
+  .leaflet-container, .leaflet-container * { -webkit-user-select: none; -moz-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  .leaflet-marker-icon { touch-action: none; }
+  .map-place-btn {
+    margin-top: 7px; border: 1px solid var(--primary); background: var(--primary); color: #fff;
+    border-radius: 8px; padding: 6px 12px; font-size: 13px; cursor: pointer; width: 100%;
+  }
+  .map-place-btn:active { filter: brightness(.92); }
+  .leaflet-popup-content { font-size: 13px; line-height: 1.5; }
+  .ov-map { height: 300px; border-radius: 12px; overflow: hidden; margin: 4px 0 14px; border: 1px solid var(--line); background: #eef2f7; position: relative; }
+  .ov-map .map-loading { position: absolute; inset: 0; }
+  @media print { .ov-map { height: 220px; } }
+
+  /* ===== 分帳 ===== */
+  .split-hero {
+    background: linear-gradient(135deg, #18a999 0%, #3b6ef5 100%); color: #fff;
+    border-radius: 16px; padding: 22px 24px; margin-bottom: 16px;
+  }
+  .split-hero h2 { font-size: 22px; word-break: break-all; }
+  .split-hero .sub { opacity: .9; margin-top: 6px; font-size: 14px; }
+  .split-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px 18px; margin-bottom: 14px; }
+  .split-card h3 { font-size: 16px; margin-bottom: 12px; }
+  .people-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .person-chip { background: var(--primary-soft); color: var(--primary); border-radius: 99px; padding: 5px 8px 5px 13px; font-size: 14px; display: inline-flex; align-items: center; gap: 4px; }
+  .person-chip button { border: none; background: none; color: var(--primary); cursor: pointer; font-size: 13px; opacity: .6; padding: 0 3px; }
+  .person-chip button:hover { opacity: 1; color: var(--danger); }
+  .person-add { display: flex; gap: 8px; }
+  .person-add input { flex: 1; border: 1px solid var(--line); border-radius: 9px; padding: 8px 11px; background: #fbfcfe; }
+  .exp-list { display: flex; flex-direction: column; }
+  .exp-row { display: flex; align-items: center; gap: 12px; padding: 11px 4px; border-bottom: 1px solid var(--line); }
+  .exp-row:last-child { border-bottom: none; }
+  .exp-main { flex: 1; min-width: 0; }
+  .exp-title { font-size: 14.5px; font-weight: 600; word-break: break-all; }
+  .exp-title .exp-date { font-size: 11.5px; color: var(--ink-soft); font-weight: 400; margin-left: 6px; }
+  .exp-sub { font-size: 12.5px; color: var(--ink-soft); margin-top: 2px; word-break: break-all; }
+  .exp-amt { font-size: 15px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .exp-tools { display: flex; gap: 2px; flex-shrink: 0; }
+  .bal-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  .bal-table th, .bal-table td { text-align: right; padding: 7px 6px; border-bottom: 1px solid var(--line); }
+  .bal-table th:first-child, .bal-table td:first-child { text-align: left; }
+  .bal-table th { color: var(--ink-soft); font-weight: 600; font-size: 12.5px; }
+  .bal-table td.pos { color: #15795a; font-weight: 700; }
+  .bal-table td.neg { color: var(--danger); font-weight: 700; }
+  .settle-list { display: flex; flex-direction: column; gap: 8px; }
+  .settle-row { background: #f0fbf7; border: 1px solid #b7e8d2; border-radius: 10px; padding: 10px 14px; font-size: 14.5px; }
+  .settle-row .settle-amt { float: right; font-weight: 700; color: #15795a; }
+  .split-picker { display: flex; flex-wrap: wrap; gap: 8px 14px; }
+  .split-chk { display: inline-flex; align-items: center; gap: 5px; font-size: 14px; cursor: pointer; }
+  @media (max-width: 560px) { .flights-wrap { grid-template-columns: 1fr; } }
+  @media print { .flight-card { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+
+  .toast {
+    position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%);
+    background: var(--ink); color: #fff; padding: 10px 20px; border-radius: 99px;
+    font-size: 14px; z-index: 200; opacity: 0; transition: .25s; pointer-events: none;
+    max-width: 90vw; text-align: center;
+  }
+  .toast.show { opacity: 1; }
+
+  .back-link {
+    display: inline-flex; align-items: center; gap: 5px; color: var(--ink-soft);
+    font-size: 14px; border: none; background: none; padding: 0 0 14px;
+  }
+  .back-link:hover { color: var(--primary); }
+
+  /* ===== 列印 ===== */
+  @media print {
+    body { background: #fff; }
+    .topbar, .back-link, .day-tabs, .add-act-btn, .act-tools, .trip-header .row1 .btn, .ov-hero .btn { display: none !important; }
+    .day-panel, .trip-header { border: none; box-shadow: none; padding: 8px 0; }
+    .day-panel { page-break-inside: avoid; margin-bottom: 14px; border-bottom: 1px solid #ddd; }
+    .container { max-width: 100%; padding: 0; }
+    .print-all .day-panel { display: block !important; }
+  }
+
+  @media (max-width: 560px) {
+    .topbar { padding: 12px 14px; flex-wrap: wrap; }
+    .topbar h1 { font-size: 17px; }
+    .container { padding: 16px 10px 70px; }
+    .act-time { flex-basis: 48px; font-size: 13px; }
+    .act-tools { opacity: 1; }
+    .trip-header { padding: 15px 16px; }
+    .day-panel { padding: 14px 12px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1><span class="logo">🗺️</span>行程規劃</h1>
+  <div class="spacer"></div>
+  <button class="btn small" id="btnTips" title="使用小提醒">💡 小提醒</button>
+  <button class="btn small" id="btnImport" title="匯入 JSON">📥 匯入</button>
+  <button class="btn small" id="btnExport" title="匯出 JSON 備份">📤 匯出</button>
+  <input type="file" id="fileImport" accept=".json" hidden>
+</div>
+
+<div class="container" id="app"></div>
+<div class="toast" id="toast"></div>
+
+<!-- Firebase（即時共編用，免費 CDN；沒網路時工具仍可純本機使用） -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
+<!-- Leaflet 地圖（免費 OpenStreetMap，免金鑰） -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+'use strict';
+
+/* ===================== 資料層 ===================== */
+const STORE_KEY = 'tripPlanner.v1';
+const CATS = {
+  sight:     { name: '景點', color: 'var(--cat-sight)' },
+  food:      { name: '美食', color: 'var(--cat-food)' },
+  transport: { name: '交通', color: 'var(--cat-transport)' },
+  hotel:     { name: '住宿', color: 'var(--cat-hotel)' },
+  shop:      { name: '購物', color: 'var(--cat-shop)' },
+  other:     { name: '其他', color: 'var(--cat-other)' },
+};
+const WEEKDAYS = ['日','一','二','三','四','五','六'];
+/* 地圖圖釘用的實色（對應 :root 的 --cat-*；Leaflet 圖釘無法用 CSS 變數） */
+const CAT_HEX = { sight:'#3b6ef5', food:'#e8843c', transport:'#18a999', hotel:'#8b5cf6', shop:'#d6489a', other:'#7a8499' };
+
+let state = load();
+let view = { page: 'list', tripId: null, dayIndex: 0 };
+
+function load() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (raw) {
+      const data = JSON.parse(raw);
+      if (Array.isArray(data.trips)) return data;
+    }
+  } catch (e) { console.warn('讀取資料失敗', e); }
+  return { trips: [] };
+}
+function save() {
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify(state));
+  } catch (e) {
+    toast('⚠️ 儲存失敗：' + e.message);
+  }
+}
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+function getTrip(id) { return state.trips.find(t => t.id === id); }
+
+/* 依起訖日期計算天數（含首尾） */
+function tripDays(trip) {
+  const s = new Date(trip.start + 'T00:00:00');
+  const e = new Date(trip.end + 'T00:00:00');
+  const n = Math.max(1, Math.round((e - s) / 86400000) + 1);
+  return Math.min(n, 60); // 上限 60 天，避免日期填錯時撐爆畫面
+}
+function dayDate(trip, i) {
+  const d = new Date(trip.start + 'T00:00:00');
+  d.setDate(d.getDate() + i);
+  return d;
+}
+function fmtDate(d) {
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+}
+function fmtRange(trip) {
+  const s = new Date(trip.start + 'T00:00:00');
+  const e = new Date(trip.end + 'T00:00:00');
+  return `${s.getFullYear()}/${fmtDate(s)} – ${e.getFullYear() !== s.getFullYear() ? e.getFullYear() + '/' : ''}${fmtDate(e)}（${tripDays(trip)} 天）`;
+}
+
+/* 確保 trip.days 陣列長度與日期區間一致（改日期後多退少補） */
+function syncDays(trip) {
+  const n = tripDays(trip);
+  if (!Array.isArray(trip.days)) trip.days = [];
+  while (trip.days.length < n) trip.days.push({ acts: [] });
+  if (trip.days.length > n) {
+    // 把被砍掉天數的活動併到最後一天，避免資料默默消失
+    const overflow = trip.days.splice(n);
+    const orphan = overflow.flatMap(d => d.acts);
+    if (orphan.length) trip.days[n - 1].acts.push(...orphan);
+  }
+}
+
+function dayCost(day)  { return day.acts.reduce((s, a) => s + (Number(a.cost) || 0), 0); }
+function tripCost(trip){ return trip.days.reduce((s, d) => s + dayCost(d), 0); }
+function tripActCount(trip) { return trip.days.reduce((s, d) => s + d.acts.length, 0); }
+function fmtMoney(n) { return n.toLocaleString('zh-TW'); }
+
+/* 幣別：國內預設 NT$；國外行程可自選幣別並填匯率換算台幣 */
+const CURRENCIES = ['NT$', '¥ 日圓', '$ 美金', '€ 歐元', '₩ 韓元', '¥ 人民幣', '฿ 泰銖', '$ 港幣', '$ 新加坡幣', '£ 英鎊', '$ 澳幣', '₫ 越南盾'];
+function curSymbol(trip) { return (trip.currency || 'NT$').split(' ')[0]; }
+function curName(trip) { return trip.currency || 'NT$'; }
+function money(trip, n) { return `${curSymbol(trip)}${fmtMoney(n)}`; }
+/* 有填匯率且非台幣時，附上約合台幣 */
+function twdHint(trip, n) {
+  const rate = Number(trip.rate) || 0;
+  if (!rate || (trip.currency || 'NT$') === 'NT$' || !n) return '';
+  return `（約 NT$${fmtMoney(Math.round(n * rate))}）`;
+}
+
+/* 依時間排序：有時間的在前按時間排，沒時間的按 order（建立/最短路徑順序）排在後面 */
+function sortDay(day) {
+  day.acts.sort((a, b) => {
+    if (a.time && b.time) return a.time.localeCompare(b.time) || ((a.order || 0) - (b.order || 0));
+    if (a.time) return -1;
+    if (b.time) return 1;
+    return (a.order || 0) - (b.order || 0);
+  });
+}
+
+/* ===================== 畫面渲染 ===================== */
+const app = document.getElementById('app');
+
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+function render() {
+  if (view.page === 'list') renderList();
+  else if (view.page === 'overview') renderOverview();
+  else if (view.page === 'split') renderSplit();
+  else renderTrip();
+}
+
+/* ---- 行程列表 ---- */
+function renderList() {
+  let html = `
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <h2 style="font-size:20px;flex:1">我的行程</h2>
+      <button class="btn" onclick="openJoinModal()">🔗 加入共編</button>
+      <button class="btn primary" onclick="openTripModal()">＋ 新增行程</button>
+    </div>`;
+
+  if (!state.trips.length) {
+    html += `
+      <div class="empty-hint">
+        <div class="big">🧳</div>
+        <p>還沒有任何行程</p>
+        <p style="margin-top:6px;font-size:13.5px">點「新增行程」開始規劃你的下一趟旅行吧！</p>
+      </div>`;
+  } else {
+    html += '<div class="trip-grid">';
+    for (const t of state.trips) {
+      const cost = tripCost(t);
+      html += `
+        <div class="trip-card" onclick="openTrip('${t.id}')">
+          <button class="del-trip" title="刪除行程" onclick="event.stopPropagation();deleteTrip('${t.id}')">✕</button>
+          <h3>${esc(t.name)}</h3>
+          <div class="dates">📅 ${fmtRange(t)}</div>
+          <div class="meta">
+            <span>📍 ${tripActCount(t)} 個活動</span>
+            <span>💰 ${money(t, cost)}${t.budget ? ' / ' + money(t, t.budget) : ''}</span>
+          </div>
+        </div>`;
+    }
+    html += '</div>';
+  }
+  app.innerHTML = html;
+}
+
+/* ---- 行程詳細 ---- */
+function renderTrip() {
+  const trip = getTrip(view.tripId);
+  if (!trip) { view = { page: 'list' }; return renderList(); }
+  // 記住候選清單的捲動位置，重畫（如跳天）後還原，避免被捲回頂端
+  const prevTrayScroll = (() => { const el = app.querySelector('.tray-list'); return el ? el.scrollTop : null; })();
+  syncDays(trip);
+  const n = tripDays(trip);
+  if (view.dayIndex >= n) view.dayIndex = n - 1;
+
+  const cost = tripCost(trip);
+  const budget = Number(trip.budget) || 0;
+  const pct = budget ? Math.min(100, cost / budget * 100) : 0;
+
+  let html = `
+    <button class="back-link" onclick="backToList()">← 返回行程列表</button>
+    <div class="trip-header">
+      <div class="row1">
+        <h2>${esc(trip.name)}</h2>
+        <button class="btn small" onclick="openTripModal('${trip.id}')">✏️ 編輯</button>
+        <button class="btn small" onclick="openFlightModal('${trip.id}')">✈️ 航班</button>
+        <button class="btn small" onclick="exportText('${trip.id}')">📋 複製文字</button>
+        <button class="btn small" onclick="openSplit('${trip.id}')">💰 分帳</button>
+        ${trip.roomId
+          ? `<button class="btn small" onclick="showShareModal('${trip.id}')">🔗 邀請</button>`
+          : `<button class="btn small" onclick="startShare('${trip.id}')">🤝 共編</button>`}
+        <button class="btn small primary" onclick="openOverview()">📄 行程表</button>
+      </div>
+      <div class="dates">📅 ${fmtRange(trip)}</div>
+      ${trip.roomId ? `
+      <div class="collab-bar">
+        <span class="dot"></span>
+        <span>即時共編中 · 房號 <span class="room">${esc(trip.roomId.slice(1, 7))}</span>${myName ? ` · 你是 ${esc(myName)}` : ''}</span>
+        <span class="spacer"></span>
+        <button class="btn small" onclick="showShareModal('${trip.id}')">邀請同伴</button>
+        <button class="btn small danger-text" onclick="leaveShare('${trip.id}')">離開</button>
+      </div>` : ''}
+      ${flightsBlockHtml(trip, true)}
+      ${budget ? `
+      <div class="budget-bar">
+        <div class="labels">
+          <span>已花費 <b>${money(trip, cost)}</b>${twdHint(trip, cost)}</span>
+          <span>預算 ${money(trip, budget)}${cost > budget ? `（超支 ${money(trip, cost - budget)}）` : `（剩 ${money(trip, budget - cost)}）`}</span>
+        </div>
+        <div class="budget-track"><div class="budget-fill ${cost > budget ? 'over' : ''}" style="width:${pct}%"></div></div>
+      </div>` : `
+      <div class="budget-bar"><div class="labels"><span>總花費 <b>${money(trip, cost)}</b>${twdHint(trip, cost)}</span></div></div>`}
+    </div>
+
+    <div class="trip-layout">
+    <div class="trip-main">
+    <div class="day-tabs">`;
+
+  for (let i = 0; i < n; i++) {
+    const d = dayDate(trip, i);
+    html += `
+      <button class="day-tab ${i === view.dayIndex ? 'active' : ''}" data-daytab="${i}" onclick="switchDay(${i})">
+        第 ${i + 1} 天
+        <span class="wd">${fmtDate(d)}（${WEEKDAYS[d.getDay()]}）</span>
+      </button>`;
+  }
+  html += '</div>';
+
+  html += renderDayPanel(trip, view.dayIndex);
+  html += '</div>';                 // /trip-main
+  html += renderTray(trip);
+  html += '</div>';                 // /trip-layout
+  app.innerHTML = html;
+  if (prevTrayScroll != null) { const el = app.querySelector('.tray-list'); if (el) el.scrollTop = prevTrayScroll; }
+  bindDrag(trip);
+  bindTray(trip);
+  if (view.showMap) initDayMap(trip, view.dayIndex);
+}
+
+function travelChip(tr) {
+  const walk = tr.km <= 2 ? `　🚶 約 ${Math.max(1, Math.round(tr.km / 4.5 * 60))} 分` : '';
+  return `
+    <div class="travel-row">
+      <div class="t-spacer"></div>
+      <div class="t-rail"><i></i></div>
+      <div><span class="travel-pill">🚗 約 ${tr.mins} 分 · ${tr.km} km${walk}${tr.est ? '（直線估算）' : ''}</span></div>
+    </div>`;
+}
+
+/* 時間/連結小工具 */
+function hmToMin(s) { const p = String(s).split(':'); return (+p[0]) * 60 + (+p[1]); }
+function durBadge(a) {
+  if (a.time && a.endTime) {
+    const d = hmToMin(a.endTime) - hmToMin(a.time);
+    if (d > 0) { const h = Math.floor(d / 60), m = d % 60; return `<span class="dur-badge">⏱ ${h ? h + 'h' : ''}${m ? m + 'm' : (h ? '' : '0m')}</span>`; }
+  }
+  return '';
+}
+function isOverlap(prev, a) { return !!(prev && prev.time && prev.endTime && a.time && hmToMin(a.time) < hmToMin(prev.endTime)); }
+function linkHref(u) { return /^https?:\/\//i.test(u) ? u : ('https://' + u); }
+function actEndLabel(a) { return a.endTime ? `<span class="act-end-time">–${a.endTime}</span>` : ''; }
+
+function renderDayPanel(trip, di, readonly) {
+  const day = trip.days[di];
+  const d = dayDate(trip, di);
+  let html = `
+    <div class="day-panel" data-day="${di}">
+      <div class="day-head">
+        <h3>第 ${di + 1} 天 · ${d.getMonth() + 1}/${d.getDate()}（${WEEKDAYS[d.getDay()]}）</h3>
+        ${readonly ? '' : `<button class="btn small" onclick="estimateRoute(${di})" title="依各活動的「地點」估算之間的車程">⏱️ 估路線</button>
+        <button class="btn small" onclick="openOptimizeModal(${di})" title="把這天的地點排成最省車程的順序">🧭 最短路徑</button>
+        <button class="btn small" onclick="toggleDayMap()" title="在地圖上看這天的地點與路線">${view.showMap ? '🗺️ 收起地圖' : '🗺️ 看地圖'}</button>`}
+        <span class="day-cost">本日花費 <b>${money(trip, dayCost(day))}</b>${twdHint(trip, dayCost(day))}</span>
+      </div>
+      ${!readonly && day._opt ? `<div class="opt-summary">🧭 已排最短路徑：<b>${day._opt.stops}</b> 個點 · 總車程約 <b>${Math.floor(day._opt.mins / 60) ? Math.floor(day._opt.mins / 60) + ' 小時 ' : ''}${day._opt.mins % 60} 分</b> / ${day._opt.km} km${day._opt.est ? '（直線估算）' : ''}</div>` : ''}
+      ${!readonly && view.showMap ? `<div id="mapBox" class="map-box" style="position:relative"></div>
+      <div class="map-legend"><span><b style="color:var(--ink)">編號</b>＝當天順序</span><span class="lg-line"></span>路線<span><span class="lg-pool"></span>候選地點</span><span style="color:#e8843c">🟠 橘色＝定位不到，拖到正確處</span><span style="color:var(--primary)">✋ 圖釘可拖曳修正</span></div>` : ''}`;
+
+  if (!day.acts.length) {
+    html += `<div class="day-empty">${readonly ? '（這天沒有安排）' : '這天還沒有安排，按下方按鈕新增第一個活動 ✈️'}</div>`;
+  } else {
+    html += '<div class="timeline">';
+    day.acts.forEach((a, ai) => {
+      const cat = CATS[a.cat] || CATS.other;
+      const prev = ai > 0 ? day.acts[ai - 1] : null;
+      if (a.travel && ai > 0) html += travelChip(a.travel);
+      html += `
+        <div class="act-item" ${readonly || a.flightKey ? '' : 'draggable="true"'} data-ai="${ai}">
+          <div class="act-time ${a.time ? '' : 'none'}">${a.time || '--:--'}${actEndLabel(a)}</div>
+          <div class="act-rail">
+            <div class="act-dot" style="background:${cat.color}"></div>
+            <div class="act-line"></div>
+          </div>
+          <div class="act-body">
+            <div class="act-title-row">
+              <span class="act-cat-badge" style="background:${cat.color}">${cat.name}</span>
+              <span class="act-title">${esc(a.title)}</span>
+              ${durBadge(a)}
+              ${Number(a.cost) ? `<span class="act-cost-badge">💰 ${money(trip, Number(a.cost))}</span>` : ''}
+              ${a.by ? `<span class="by-badge">👤 ${esc(a.by)}</span>` : ''}
+            </div>
+            ${isOverlap(prev, a) ? `<div class="overlap-warn">⚠️ 與前一項時間重疊</div>` : ''}
+            ${a.loc ? `<div class="act-loc">📍 <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a.loc)}" target="_blank" rel="noopener">${esc(a.loc)}</a></div>` : ''}
+            ${a.link ? `<div class="act-loc">🔗 <a href="${esc(linkHref(a.link))}" target="_blank" rel="noopener">訂位 / 連結</a></div>` : ''}
+            ${a.note ? `<div class="act-note">${esc(a.note)}</div>` : ''}
+          </div>
+          ${readonly ? '' : `
+          <div class="act-tools">
+            ${a.flightKey
+              ? `<button class="icon-btn" title="這是航班，請從「✈️ 航班」修改" onclick="openFlightModal('${trip.id}')">✈️</button>`
+              : `<button class="icon-btn" title="上移" onclick="moveAct(${di},${ai},-1)" ${ai === 0 ? 'disabled' : ''}>▲</button>
+            <button class="icon-btn" title="下移" onclick="moveAct(${di},${ai},1)" ${ai === day.acts.length - 1 ? 'disabled' : ''}>▼</button>
+            <button class="icon-btn" title="編輯" onclick="openActModal(${di},${ai})">✏️</button>
+            <button class="icon-btn danger" title="刪除" onclick="deleteAct(${di},${ai})">🗑️</button>`}
+          </div>`}
+        </div>`;
+    });
+    html += '</div>';
+  }
+
+  html += readonly ? '</div>' : `<button class="add-act-btn" onclick="openActModal(${di})">＋ 新增活動</button></div>`;
+  return html;
+}
+
+/* ---- 行程表總覽（好看、可列印的完整行程表） ---- */
+function renderOverview() {
+  const trip = getTrip(view.tripId);
+  if (!trip) { view = { page: 'list' }; return renderList(); }
+  syncDays(trip);
+  const n = tripDays(trip);
+  const cost = tripCost(trip);
+  const totalTravel = trip.days.reduce((s, d) => s + d.acts.reduce((x, a) => x + (a.travel ? a.travel.mins : 0), 0), 0);
+
+  let html = `
+    <button class="back-link" onclick="closeOverview()">← 返回編輯</button>
+    <div class="ov-hero">
+      <div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap">
+        <h2 style="flex:1;min-width:200px">${esc(trip.name)}</h2>
+        <button class="btn small" style="background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.4);color:#fff" onclick="window.print()">🖨️ 列印 / 存 PDF</button>
+      </div>
+      <div class="sub">📅 ${fmtRange(trip)}</div>
+      <div class="ov-stats">
+        <div class="ov-stat"><b>${n}</b><span>天數</span></div>
+        <div class="ov-stat"><b>${tripActCount(trip)}</b><span>活動</span></div>
+        <div class="ov-stat"><b>${money(trip, cost)}</b><span>總花費${twdHint(trip, cost) || ''}</span></div>
+        ${totalTravel ? `<div class="ov-stat"><b>${Math.floor(totalTravel / 60)}h ${totalTravel % 60}m</b><span>預估交通時間</span></div>` : ''}
+        ${trip.budget ? `<div class="ov-stat"><b>${money(trip, trip.budget)}</b><span>預算</span></div>` : ''}
+      </div>
+    </div>`;
+
+  const flightsHtml = flightsBlockHtml(trip, false);
+  if (flightsHtml) html += `<div style="margin-bottom:14px">${flightsHtml}</div>`;
+
+  for (let i = 0; i < n; i++) {
+    const d = dayDate(trip, i);
+    const day = trip.days[i];
+    const hasLoc = day.acts.some(a => a.loc);
+    html += `
+      <div class="ov-day">
+        <div class="ov-day-head">
+          <span class="chip">DAY ${i + 1}</span>
+          <h3>${d.getMonth() + 1}/${d.getDate()}（${WEEKDAYS[d.getDay()]}）</h3>
+          ${day.acts.length ? `<span class="spend">本日 ${money(trip, dayCost(day))}</span>` : ''}
+        </div>
+        ${hasLoc ? `<div id="ovmap-${i}" class="ov-map"><div class="map-loading">🗺️ 地圖載入中…</div></div>` : ''}
+        ${dayTimelineHtml(trip, i)}
+      </div>`;
+  }
+  app.innerHTML = html;
+  window.scrollTo(0, 0);
+  initOverviewMaps(trip);
+}
+
+function closeOverview() { destroyOvMaps(); view.page = 'trip'; render(); }
+
+/* 取出唯讀時間軸（不含 day-panel 外框） */
+function dayTimelineHtml(trip, di) {
+  const day = trip.days[di];
+  if (!day.acts.length) return '<div class="day-empty">（這天沒有安排）</div>';
+  let html = '<div class="timeline">';
+  day.acts.forEach((a, ai) => {
+    const cat = CATS[a.cat] || CATS.other;
+    const prev = ai > 0 ? day.acts[ai - 1] : null;
+    if (a.travel && ai > 0) html += travelChip(a.travel);
+    html += `
+      <div class="act-item" data-ai="${ai}">
+        <div class="act-time ${a.time ? '' : 'none'}">${a.time || '--:--'}${actEndLabel(a)}</div>
+        <div class="act-rail">
+          <div class="act-dot" style="background:${cat.color}"></div>
+          <div class="act-line"></div>
+        </div>
+        <div class="act-body">
+          <div class="act-title-row">
+            <span class="act-cat-badge" style="background:${cat.color}">${cat.name}</span>
+            <span class="act-title">${esc(a.title)}</span>
+            ${durBadge(a)}
+            ${Number(a.cost) ? `<span class="act-cost-badge">💰 ${money(trip, Number(a.cost))}</span>` : ''}
+            ${a.by ? `<span class="by-badge">👤 ${esc(a.by)}</span>` : ''}
+          </div>
+          ${isOverlap(prev, a) ? `<div class="overlap-warn">⚠️ 與前一項時間重疊</div>` : ''}
+          ${a.loc ? `<div class="act-loc">📍 ${esc(a.loc)}</div>` : ''}
+          ${a.link ? `<div class="act-loc">🔗 <a href="${esc(linkHref(a.link))}" target="_blank" rel="noopener">訂位 / 連結</a></div>` : ''}
+          ${a.note ? `<div class="act-note">${esc(a.note)}</div>` : ''}
+        </div>
+      </div>`;
+  });
+  return html + '</div>';
+}
+
+/* ===================== 互動 ===================== */
+function openTrip(id) {
+  view = { page: 'trip', tripId: id, dayIndex: 0 };
+  const t = getTrip(id);
+  if (isShared(t)) subscribeRoom(t);
+  render(); window.scrollTo(0, 0);
+}
+function backToList() { destroyMap(); destroyOvMaps(); view = { page: 'list' }; render(); }
+function switchDay(i) { destroyMap(); view.dayIndex = i; render(); }
+function openOverview() { destroyMap(); view.page = 'overview'; render(); }
+
+/* ===================== 路線時間估算 ===================== */
+/* 免費服務：Nominatim 地理編碼 + OSRM 路線（皆為 OSM 公開伺服器，無需金鑰） */
+/* 座標快取存進 localStorage：同一地點只查一次，重新整理後地圖/路線秒開 */
+let geoCache = (() => {
+  try { return JSON.parse(localStorage.getItem('tripPlanner.geo') || '{}'); }
+  catch (e) { return {}; }
+})();
+let geoSaveTimer = null;
+function saveGeo() {
+  clearTimeout(geoSaveTimer);
+  geoSaveTimer = setTimeout(() => {
+    try { localStorage.setItem('tripPlanner.geo', JSON.stringify(geoCache)); } catch (e) {}
+  }, 400);
+}
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+/* ---- Plus Code（Google 地圖的 +碼）解碼：純算法、免任何服務、精準 ---- */
+const OLC_ENC = '23456789CFGHJMPQRVWX';
+function olcEncode10(lat, lon) {
+  let aLat = lat + 90, aLon = lon + 180, code = '';
+  const pr = [20, 1, 0.05, 0.0025, 0.000125];
+  for (let i = 0; i < 5; i++) { const r = pr[i]; const ld = Math.floor(aLat / r); aLat -= ld * r; const od = Math.floor(aLon / r); aLon -= od * r; code += OLC_ENC[ld] + OLC_ENC[od]; }
+  return code;   // 10 碼，無分隔符
+}
+function olcDecode(noSep) {
+  let lat = -90, lon = -180, res = 20; const pr = [20, 1, 0.05, 0.0025, 0.000125];
+  for (let i = 0; i + 1 < noSep.length && i < 10; i += 2) { res = pr[i / 2]; lat += OLC_ENC.indexOf(noSep[i]) * res; lon += OLC_ENC.indexOf(noSep[i + 1]) * res; }
+  return { lat: lat + res / 2, lon: lon + res / 2 };
+}
+function olcRecover(shortCode, refLat, refLon) {
+  const sc = shortCode.toUpperCase(); const before = sc.indexOf('+'); const pad = 8 - before;
+  if (pad <= 0) return olcDecode(sc.replace('+', ''));
+  const prefix = olcEncode10(refLat, refLon).slice(0, pad);
+  const r = olcDecode(prefix + sc.replace('+', ''));
+  const resolution = Math.pow(20, 2 - pad / 2), half = resolution / 2;
+  if (r.lat - refLat > half) r.lat -= resolution; else if (refLat - r.lat > half) r.lat += resolution;
+  if (r.lon - refLon > half) r.lon -= resolution; else if (refLon - r.lon > half) r.lon += resolution;
+  return r;
+}
+
+/* 以「目前行程已知的地點」當中心，替新查詢做距離偏好，讓同名地點優先落在正確城市 */
+function geoBias() {
+  const trip = getTrip(view.tripId);
+  if (!trip || !trip.days) return null;
+  const pts = [];
+  trip.days.forEach(d => (d.acts || []).forEach(a => {
+    const c = (a.lat != null && a.lon != null) ? { lat: a.lat, lon: a.lon } : geoCache[a.loc];
+    if (c) pts.push(c);
+  }));
+  (trip.pool || []).forEach(p => {
+    const c = (p.lat != null && p.lon != null) ? { lat: p.lat, lon: p.lon } : geoCache[p.loc];
+    if (c) pts.push(c);
+  });
+  if (!pts.length) return null;
+  return { lat: pts.reduce((s, c) => s + c.lat, 0) / pts.length, lon: pts.reduce((s, c) => s + c.lon, 0) / pts.length };
+}
+
+let lastGeoDelay = 0;   // 本次查詢該禮貌等多久：座標/Plus Code=0、Photon=600、Nominatim=1100
+async function geocode(q) {
+  if (geoCache[q] !== undefined) { lastGeoDelay = 0; return geoCache[q]; }
+  const trip = getTrip(view.tripId);
+  const region = trip && trip.region ? trip.region.trim() : '';
+  lastGeoDelay = 0;
+
+  // A) 直接貼座標：「22.305, 114.170」→ 精準
+  const mCoord = q.match(/(-?\d{1,3}\.\d{3,})\s*[,，]\s*(-?\d{1,3}\.\d{3,})/);
+  if (mCoord) {
+    const r = { lat: +mCoord[1], lon: +mCoord[2] };
+    if (Math.abs(r.lat) <= 90 && Math.abs(r.lon) <= 180) { geoCache[q] = r; saveGeo(); return r; }
+  }
+  // B) Google Plus Code：「853C+F2 佐敦 香港」或完整碼 → 精準（免任何服務）
+  const mPlus = q.match(/\b([2-9CFGHJMPQRVWXcfghjmpqrvwx]{2,8})\+([2-9CFGHJMPQRVWXcfghjmpqrvwx]{2,})\b/);
+  if (mPlus) {
+    const short = (mPlus[1] + '+' + mPlus[2]).toUpperCase();
+    if (mPlus[1].length >= 8) { const r = olcDecode(short.replace('+', '')); geoCache[q] = r; saveGeo(); return r; }
+    // 地名可能在碼前或碼後
+    const after = q.slice(mPlus.index + mPlus[0].length).trim();
+    const before = q.slice(0, mPlus.index).trim();
+    const locality = after || before || region;
+    let ref = locality ? await geocode(locality) : null;
+    if (!ref) ref = geoBias();
+    if (ref) { const r = olcRecover(short, ref.lat, ref.lon); geoCache[q] = r; saveGeo(); return r; }
+  }
+
+  const eq = (region && !q.includes(region)) ? (q + ' ' + region) : q;   // 加上主要地區，大幅提升準確度
+  let res = null;
+  const bias = geoBias();
+  // 1) Photon（OSM，POI／模糊搜尋較強、回中英雙名）＋ 行程區域距離偏好
+  try {
+    const u = 'https://photon.komoot.io/api/?limit=1&q=' + encodeURIComponent(eq) + (bias ? `&lat=${bias.lat}&lon=${bias.lon}` : '');
+    const p = await (await fetchTimeout(u)).json();
+    lastGeoDelay = 600;
+    if (p.features && p.features[0] && p.features[0].geometry) {
+      const c = p.features[0].geometry.coordinates;   // [lon, lat]
+      res = { lat: c[1], lon: c[0] };
+    }
+  } catch (e) { /* Photon 失敗／逾時 → 退回 Nominatim */ }
+  // 2) 退回 Nominatim
+  if (!res) {
+    try {
+      const n = await (await fetchTimeout(
+        `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(eq)}`,
+        { headers: { 'Accept-Language': 'zh-TW' } }
+      )).json();
+      lastGeoDelay = 1100;
+      if (n.length) res = { lat: +n[0].lat, lon: +n[0].lon };
+    } catch (e) { lastGeoDelay = 1100; }
+  }
+  geoCache[q] = res;
+  saveGeo();
+  return geoCache[q];
+}
+
+/* 迴圈批次定位用：查完自動依「實際用到的服務」禮貌等待（快取/座標/Plus Code 不等） */
+async function geocodeSlow(q) {
+  if (geoCache[q] !== undefined) return geoCache[q];
+  const r = await geocode(q);
+  if (lastGeoDelay) await sleep(lastGeoDelay);
+  return r;
+}
+
+/* 加逾時的 fetch，避免某個免費服務卡住整個查詢流程 */
+function fetchTimeout(url, opts, ms) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms || 6000);
+  return fetch(url, Object.assign({ signal: ctrl.signal }, opts || {})).finally(() => clearTimeout(t));
+}
+
+function haversineKm(p1, p2) {
+  const R = 6371, toR = x => x * Math.PI / 180;
+  const dLat = toR(p2.lat - p1.lat), dLon = toR(p2.lon - p1.lon);
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(toR(p1.lat)) * Math.cos(toR(p2.lat)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+let routing = false;
+async function estimateRoute(di) {
+  if (routing) return toast('查詢中，請稍候…');
+  const trip = getTrip(view.tripId);
+  const acts = trip.days[di].acts;
+  seedActCoords(acts);
+  const stops = acts.filter(a => a.loc);
+  if (stops.length < 2) {
+    return toast('請先在至少 2 個活動填「地點」，才能估算之間的車程');
+  }
+  routing = true;
+  toast('⏱️ 正在查詢地點與路線，請稍候…');
+  try {
+    const missing = [];
+    for (const a of stops) {
+      if (geoCache[a.loc] === undefined) await geocodeSlow(a.loc);   // 依實際服務自動禮貌限速
+      if (!geoCache[a.loc]) missing.push(a.loc);
+    }
+    acts.forEach(a => delete a.travel);
+    // 查不到座標的點直接跳過，串接前後找得到的地點
+    const located = stops.filter(a => geoCache[a.loc]);
+    let okCount = 0;
+    for (let k = 1; k < located.length; k++) {
+      const p1 = geoCache[located[k - 1].loc], p2 = geoCache[located[k].loc];
+      let mins, km, est = false;
+      try {
+        const r = await fetch(`https://router.project-osrm.org/route/v1/driving/${p1.lon},${p1.lat};${p2.lon},${p2.lat}?overview=false`);
+        const j = await r.json();
+        if (j.code === 'Ok' && j.routes && j.routes[0]) {
+          mins = Math.max(1, Math.round(j.routes[0].duration / 60));
+          km = +(j.routes[0].distance / 1000).toFixed(1);
+        }
+      } catch (e) { /* OSRM 失敗 → 退回直線估算 */ }
+      if (mins === undefined) {
+        const d = haversineKm(p1, p2) * 1.3; // 直線距離 ×1.3 近似實際路程
+        km = +d.toFixed(1);
+        mins = Math.max(1, Math.round(d / 40 * 60)); // 以市區均速 40km/h 估
+        est = true;
+      }
+      // travel 掛在「後一個」活動上：代表從上一站過來的車程
+      const idx = acts.indexOf(located[k]);
+      acts[idx].travel = { mins, km, est };
+      okCount++;
+    }
+    save();
+    if (isShared(trip)) acts.forEach(a => { a.di = di; rAct(trip, a); });   // 車程同步到雲端，避免同步後消失
+    render();
+    if (okCount) {
+      toast(`完成！已估出 ${okCount} 段車程${missing.length ? `（查不到：${missing.join('、')}）` : ''}`);
+    } else {
+      toast(`查不到地點${missing.length ? `（${missing.join('、')}）` : ''}，建議寫地標或地址（例如「淺草寺 東京」）`);
+    }
+  } catch (e) {
+    toast('⚠️ 網路查詢失敗，請確認連線後再試');
+  } finally {
+    routing = false;
+  }
+}
+
+/* ===================== 即時共編（Firebase Realtime Database） ===================== */
+let db = null, activeRoomRef = null, activeRoomId = null;
+let pendingSnap = null, applyTimer = null;  // 合併同步回呼，避免中途覆蓋本機正在進行的編輯
+let myName = localStorage.getItem('tripPlanner.me') || '';
+
+/* URL-safe base64：避免 +/= 在網址裡被改掉 */
+function b64encode(obj) {
+  return btoa(unescape(encodeURIComponent(JSON.stringify(obj))))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function b64decode(s) {
+  s = s.replace(/-/g, '+').replace(/_/g, '/');
+  while (s.length % 4) s += '=';
+  return JSON.parse(decodeURIComponent(escape(atob(s))));
+}
+
+function getFbConfig() {
+  try { const r = localStorage.getItem('tripPlanner.fb'); return r ? JSON.parse(r) : null; }
+  catch (e) { return null; }
+}
+function initFirebase(cfg) {
+  if (typeof firebase === 'undefined') { toast('⚠️ Firebase 元件沒載入，請確認網路'); return false; }
+  try {
+    if (!firebase.apps.length) firebase.initializeApp(cfg);
+    db = firebase.database();
+    localStorage.setItem('tripPlanner.fb', JSON.stringify(cfg));
+    return true;
+  } catch (e) { toast('Firebase 設定有誤：' + e.message); return false; }
+}
+function fbReady() { return !!db; }
+function isShared(trip) { return !!(trip && trip.roomId && db); }
+
+function ensureName() {
+  if (myName) return myName;
+  let n = '';
+  try { n = (prompt('你的暱稱（會標在你新增的項目上，可留空）：', '') || '').trim(); } catch (e) {}
+  if (n) { myName = n.slice(0, 20); localStorage.setItem('tripPlanner.me', myName); }
+  return myName;
+}
+
+/* 本機 ↔ 遠端 結構轉換 */
+function actToRemote(a) {
+  return {
+    di: a.di | 0, order: a.order || 0, title: a.title || '', cat: a.cat || 'other',
+    time: a.time || '', end: a.endTime || '', cost: Number(a.cost) || 0, loc: a.loc || '',
+    link: a.link || '', note: a.note || '',
+    by: a.by || '', tmins: a.travel ? a.travel.mins : null, tkm: a.travel ? a.travel.km : null,
+    test: a.travel ? !!a.travel.est : null, fk: a.flightKey || null,
+    alat: a.lat != null ? a.lat : null, alon: a.lon != null ? a.lon : null
+  };
+}
+function infoToRemote(trip) {
+  return {
+    name: trip.name, start: trip.start, end: trip.end, budget: trip.budget || 0,
+    currency: trip.currency || 'NT$', rate: trip.rate || 0, region: trip.region || '', flights: trip.flights || null,
+    people: trip.people || [], updatedAt: Date.now()
+  };
+}
+function expToRemote(e) {
+  return { title: e.title || '', amount: Number(e.amount) || 0, payer: e.payer || '',
+    sharedBy: e.sharedBy || [], date: e.date || '', by: e.by || '' };
+}
+
+function uploadTrip(trip) {
+  if (!isShared(trip)) return;
+  const acts = {};
+  trip.days.forEach((d, di) => d.acts.forEach(a => {
+    if (!a.id) a.id = uid();
+    a.di = di;
+    acts[a.id] = actToRemote(a);
+  }));
+  const expenses = {};
+  (trip.expenses || []).forEach(e => { if (!e.id) e.id = uid(); expenses[e.id] = expToRemote(e); });
+  db.ref('rooms/' + trip.roomId).set({ info: infoToRemote(trip), acts, expenses });
+}
+function rInfo(trip) { if (isShared(trip)) db.ref('rooms/' + trip.roomId + '/info').set(infoToRemote(trip)); }
+function rAct(trip, a) {
+  if (!isShared(trip)) return;
+  if (!a.id) a.id = uid();
+  db.ref('rooms/' + trip.roomId + '/acts/' + a.id).set(actToRemote(a));
+}
+function rDelAct(trip, id) { if (isShared(trip) && id) db.ref('rooms/' + trip.roomId + '/acts/' + id).remove(); }
+function rExpense(trip, e) { if (isShared(trip)) { if (!e.id) e.id = uid(); db.ref('rooms/' + trip.roomId + '/expenses/' + e.id).set(expToRemote(e)); } }
+function rDelExpense(trip, id) { if (isShared(trip) && id) db.ref('rooms/' + trip.roomId + '/expenses/' + id).remove(); }
+
+/* 遠端快照 → 套用到本機（重建該行程） */
+function applyRemote(roomId, val) {
+  if (!roomId || !val) return;   // 退訂後殘留的排程快照不套用，避免生出幽靈行程
+  const info = val.info || {};
+  let trip = state.trips.find(t => t.roomId === roomId);
+  const today = new Date().toISOString().slice(0, 10);
+  if (!trip) {
+    trip = { id: uid(), roomId, name: info.name || '共享行程', start: info.start || today, end: info.end || today,
+      budget: 0, currency: 'NT$', rate: 0, days: [] };
+    state.trips.push(trip);
+  }
+  if (info.start) trip.start = info.start;
+  if (info.end) trip.end = info.end;
+  trip.name = info.name || trip.name;
+  trip.budget = info.budget || 0; trip.currency = info.currency || 'NT$'; trip.rate = info.rate || 0;
+  trip.region = info.region || trip.region || '';
+  trip.flights = info.flights || undefined;
+  trip.people = info.people || trip.people || [];
+  trip.expenses = Object.keys(val.expenses || {}).map(id => {
+    const e = val.expenses[id];
+    return { id, title: e.title || '', amount: e.amount || 0, payer: e.payer || '',
+      sharedBy: e.sharedBy || [], date: e.date || '', by: e.by || '' };
+  });
+  syncDays(trip);
+  trip.days.forEach(d => d.acts = []);
+  const acts = val.acts || {};
+  Object.keys(acts).forEach(id => {
+    const a = acts[id];
+    const di = Math.min(Math.max(0, a.di | 0), trip.days.length - 1);
+    const act = { id, di, order: a.order || 0, title: a.title || '', cat: a.cat || 'other',
+      time: a.time || '', endTime: a.end || '', cost: a.cost || 0, loc: a.loc || '',
+      link: a.link || '', note: a.note || '', by: a.by || '' };
+    if (a.tmins != null) act.travel = { mins: a.tmins, km: a.tkm, est: !!a.test };
+    if (a.fk) act.flightKey = a.fk;
+    if (a.alat != null) { act.lat = a.alat; act.lon = a.alon; }
+    trip.days[di].acts.push(act);
+  });
+  trip.days.forEach(sortDay);
+  save();
+  // 有人正在打字（modal 開著）就先不重畫，避免打斷輸入
+  if (!document.querySelector('.modal-mask') && (view.tripId === trip.id || view.page === 'list')) render();
+}
+
+function unsubscribeRoom() {
+  if (activeRoomRef) activeRoomRef.off();
+  activeRoomRef = null; activeRoomId = null;
+  if (applyTimer) { clearTimeout(applyTimer); applyTimer = null; }
+  pendingSnap = null;
+}
+
+function subscribeRoom(trip) {
+  if (!isShared(trip)) return;
+  if (activeRoomRef && activeRoomId === trip.roomId) return;
+  unsubscribeRoom();
+  activeRoomId = trip.roomId;
+  activeRoomRef = db.ref('rooms/' + trip.roomId);
+  // 同步回呼可能在我們自己的多筆寫入過程中「同步」連續觸發；
+  // 先暫存最新快照、延後一拍合併套用，確保整批寫完（含航班）才以最終狀態更新，不會中途覆蓋編輯。
+  activeRoomRef.on('value', snap => {
+    pendingSnap = snap.val();
+    if (applyTimer) return;
+    applyTimer = setTimeout(() => {
+      applyTimer = null;
+      const v = pendingSnap; pendingSnap = null;
+      applyRemote(activeRoomId, v);
+    }, 0);
+  });
+}
+
+function startShare(id) {
+  const trip = getTrip(id);
+  if (!fbReady()) return openFbConfigModal(id);
+  ensureName();
+  if (!trip.roomId) trip.roomId = 'r' + uid();
+  trip.days.forEach((d, di) => d.acts.forEach(a => { if (!a.id) a.id = uid(); if (!a.by) a.by = myName; a.di = di; }));
+  save();
+  uploadTrip(trip);
+  subscribeRoom(trip);
+  showShareModal(id);
+}
+
+function showShareModal(id) {
+  const trip = getTrip(id);
+  const cfg = getFbConfig();
+  const link = location.origin + location.pathname + '?room=' + encodeURIComponent(trip.roomId) + '&cfg=' + b64encode(cfg);
+  showModal(`
+    <h3>🤝 邀請共同編輯</h3>
+    <p style="font-size:13px;color:var(--ink-soft);margin:-6px 0 12px">把連結傳給同伴，他們點開就能一起加地點、改行程，所有人即時同步。每個項目會標上是誰加的。</p>
+    <textarea class="share-link" rows="3" readonly onclick="this.select()">${esc(link)}</textarea>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">關閉</button>
+      <button class="btn primary" id="btnCopyShare">📋 複製邀請連結</button>
+    </div>
+  `);
+  document.getElementById('btnCopyShare').onclick = () => copyText(link, '已複製邀請連結！');
+}
+
+function openFbConfigModal(id) {
+  const cur = getFbConfig();
+  showModal(`
+    <h3>⚙️ 設定 Firebase（只需一次）</h3>
+    <ol class="step-list">
+      <li>到 <a href="https://console.firebase.google.com/" target="_blank" rel="noopener">Firebase Console</a> 新增專案（免費）</li>
+      <li>左側「建構 → Realtime Database」→ 建立資料庫 → 選「測試模式」</li>
+      <li>專案設定 → 你的應用程式 → 選 Web（<code>&lt;/&gt;</code>）→ 複製 <code>firebaseConfig</code></li>
+      <li>整段貼到下面（要含 <code>databaseURL</code>）</li>
+    </ol>
+    <div class="field">
+      <textarea id="fbCfg" class="share-link" rows="8" placeholder='貼上 firebaseConfig，例如 { apiKey: "...", databaseURL: "https://xxx.firebasedatabase.app", ... }'>${cur ? esc(JSON.stringify(cur, null, 2)) : ''}</textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn primary" onclick="saveFbConfig('${id}')">儲存並開始共編</button>
+    </div>
+  `);
+}
+function saveFbConfig(id) {
+  let raw = document.getElementById('fbCfg').value.trim();
+  const m = raw.match(/\{[\s\S]*\}/);
+  if (m) raw = m[0];
+  let cfg = null;
+  try { cfg = JSON.parse(raw); }
+  catch (e) { try { cfg = (new Function('return (' + raw + ')'))(); } catch (e2) { return toast('看不懂這段設定，請直接貼 firebaseConfig 物件'); } }
+  if (!cfg || !cfg.databaseURL) return toast('缺少 databaseURL，請先在 Firebase 建立 Realtime Database');
+  if (!initFirebase(cfg)) return;
+  closeModal();
+  startShare(id);
+}
+
+function leaveShare(id) {
+  const trip = getTrip(id);
+  if (!confirm('離開共編？這個行程會變回只存在你這台裝置（不影響其他人）。')) return;
+  if (activeRoomId === trip.roomId) unsubscribeRoom();
+  delete trip.roomId;
+  save(); render(); toast('已離開共編');
+}
+
+function copyText(text, okMsg) {
+  navigator.clipboard.writeText(text).then(() => toast(okMsg), () => {
+    const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta);
+    ta.select(); document.execCommand('copy'); ta.remove(); toast(okMsg);
+  });
+}
+
+/* ===================== 分帳 / 拆帳 ===================== */
+function openSplit(id) {
+  const trip = getTrip(id);
+  if (!trip.people) trip.people = [];
+  if (!trip.people.length && myName) trip.people.push(myName);  // 預設帶入自己
+  view = { page: 'split', tripId: id };
+  render(); window.scrollTo(0, 0);
+}
+function closeSplit() { view.page = 'trip'; render(); }
+
+function computeBalances(trip) {
+  const people = trip.people || [];
+  const paid = {}, owed = {};
+  people.forEach(p => { paid[p] = 0; owed[p] = 0; });
+  (trip.expenses || []).forEach(e => {
+    const amt = Number(e.amount) || 0;
+    paid[e.payer] = (paid[e.payer] || 0) + amt;
+    const sh = (e.sharedBy && e.sharedBy.length) ? e.sharedBy : people;
+    if (!sh.length) return;
+    const per = amt / sh.length;
+    sh.forEach(p => { owed[p] = (owed[p] || 0) + per; });
+  });
+  const names = Array.from(new Set([...people, ...Object.keys(paid), ...Object.keys(owed)])).filter(Boolean);
+  const net = {};
+  names.forEach(p => net[p] = (paid[p] || 0) - (owed[p] || 0));
+  return { names, paid, owed, net };
+}
+function settleUp(net) {
+  const cred = [], deb = [];
+  Object.keys(net).forEach(p => { const v = Math.round(net[p]); if (v > 0) cred.push({ p, v }); else if (v < 0) deb.push({ p, v: -v }); });
+  cred.sort((a, b) => b.v - a.v); deb.sort((a, b) => b.v - a.v);
+  const out = []; let i = 0, j = 0;
+  while (i < deb.length && j < cred.length) {
+    const pay = Math.min(deb[i].v, cred[j].v);
+    if (pay > 0) out.push({ from: deb[i].p, to: cred[j].p, amt: pay });
+    deb[i].v -= pay; cred[j].v -= pay;
+    if (deb[i].v <= 0) i++;
+    if (cred[j].v <= 0) j++;
+  }
+  return out;
+}
+
+function renderSplit() {
+  const trip = getTrip(view.tripId);
+  if (!trip) { view = { page: 'list' }; return renderList(); }
+  const people = trip.people || [];
+  const expenses = trip.expenses || [];
+  const total = expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+  const bal = computeBalances(trip);
+  const settle = settleUp(bal.net);
+
+  let html = `
+    <button class="back-link" onclick="closeSplit()">← 返回行程</button>
+    <div class="split-hero">
+      <h2>💰 分帳 · ${esc(trip.name)}</h2>
+      <div class="sub">總支出 <b>${money(trip, total)}</b>${twdHint(trip, total)} · ${expenses.length} 筆 · ${people.length} 人</div>
+    </div>
+
+    <div class="split-card">
+      <h3>同行的人</h3>
+      <div class="people-chips">
+        ${people.map(p => `<span class="person-chip">${esc(p)}<button onclick="removePerson('${trip.id}','${esc(p).replace(/'/g, "\\'")}')" title="移除">✕</button></span>`).join('') || '<span style="color:var(--ink-soft);font-size:13px">還沒有人，先新增同行成員</span>'}
+      </div>
+      <div class="person-add">
+        <input id="personName" maxlength="20" placeholder="輸入名字，按 Enter 新增" onkeydown="if(event.key==='Enter')addPerson('${trip.id}')">
+        <button class="btn small" onclick="addPerson('${trip.id}')">＋ 加人</button>
+      </div>
+    </div>
+
+    <div class="split-card">
+      <div style="display:flex;align-items:center;gap:10px">
+        <h3 style="flex:1">支出明細</h3>
+        <button class="btn small primary" onclick="openExpenseModal('${trip.id}')">＋ 新增支出</button>
+      </div>`;
+
+  if (!expenses.length) {
+    html += `<div class="day-empty">還沒有支出。按「＋ 新增支出」記第一筆吧 🧾</div>`;
+  } else {
+    html += '<div class="exp-list">';
+    expenses.forEach(e => {
+      const sh = (e.sharedBy && e.sharedBy.length) ? e.sharedBy : people;
+      html += `
+        <div class="exp-row">
+          <div class="exp-main">
+            <div class="exp-title">${esc(e.title)}${e.date ? ` <span class="exp-date">${esc(e.date)}</span>` : ''}</div>
+            <div class="exp-sub">${esc(e.payer || '?')} 付 · 分給 ${sh.length} 人（${esc(sh.join('、'))}）</div>
+          </div>
+          <div class="exp-amt">${money(trip, Number(e.amount) || 0)}</div>
+          <div class="exp-tools">
+            <button class="icon-btn" title="編輯" onclick="openExpenseModal('${trip.id}','${e.id}')">✏️</button>
+            <button class="icon-btn danger" title="刪除" onclick="delExpense('${trip.id}','${e.id}')">🗑️</button>
+          </div>
+        </div>`;
+    });
+    html += '</div>';
+  }
+  html += '</div>';
+
+  if (expenses.length && people.length) {
+    html += `
+      <div class="split-card">
+        <h3>每人結餘</h3>
+        <table class="bal-table">
+          <tr><th>成員</th><th>付了</th><th>該分擔</th><th>結餘</th></tr>
+          ${bal.names.map(p => {
+            const net = bal.net[p] || 0;
+            const cls = net > 0.5 ? 'pos' : (net < -0.5 ? 'neg' : '');
+            const label = net > 0.5 ? `應收 ${money(trip, Math.round(net))}` : (net < -0.5 ? `應付 ${money(trip, Math.round(-net))}` : '結清');
+            return `<tr><td>${esc(p)}</td><td>${money(trip, Math.round(bal.paid[p] || 0))}</td><td>${money(trip, Math.round(bal.owed[p] || 0))}</td><td class="${cls}">${label}</td></tr>`;
+          }).join('')}
+        </table>
+      </div>
+      <div class="split-card">
+        <h3>怎麼還最省事</h3>
+        ${settle.length ? `<div class="settle-list">${settle.map(s => `<div class="settle-row"><b>${esc(s.from)}</b> 給 <b>${esc(s.to)}</b> <span class="settle-amt">${money(trip, s.amt)}</span></div>`).join('')}</div>` : '<div class="day-empty">已經結清，不用還啦 🎉</div>'}
+      </div>`;
+  }
+
+  app.innerHTML = html;
+  window.scrollTo(0, 0);
+}
+
+function addPerson(tripId) {
+  const trip = getTrip(tripId);
+  const inp = document.getElementById('personName');
+  const name = inp.value.trim();
+  if (!name) return;
+  if (!trip.people) trip.people = [];
+  if (trip.people.includes(name)) { inp.value = ''; return toast('這個名字已經有了'); }
+  trip.people.push(name);
+  save(); rInfo(trip); render();
+}
+function removePerson(tripId, name) {
+  const trip = getTrip(tripId);
+  const used = (trip.expenses || []).some(e => e.payer === name || (e.sharedBy || []).includes(name));
+  if (used && !confirm(`「${name}」已被某些支出使用。移除不會刪那些支出，但分帳會變動。確定移除？`)) return;
+  trip.people = (trip.people || []).filter(p => p !== name);
+  save(); rInfo(trip); render();
+}
+
+function openExpenseModal(tripId, eid) {
+  const trip = getTrip(tripId);
+  const people = trip.people || [];
+  if (!people.length) return toast('請先在上面新增「同行的人」');
+  const e = eid ? (trip.expenses || []).find(x => x.id === eid) : null;
+  const today = new Date().toISOString().slice(0, 10);
+  const shared = e ? (e.sharedBy && e.sharedBy.length ? e.sharedBy : people) : people;
+  showModal(`
+    <h3>${e ? '編輯支出' : '新增支出'}</h3>
+    <div class="field">
+      <label>項目 *</label>
+      <input id="expTitle" maxlength="40" placeholder="例如：晚餐、車資、門票" value="${e ? esc(e.title) : ''}">
+    </div>
+    <div class="field-row">
+      <div class="field"><label>金額 *（${esc(curName(trip))}）</label>
+        <input id="expAmount" type="number" min="0" step="any" placeholder="0" value="${e ? e.amount : ''}"></div>
+      <div class="field"><label>日期</label>
+        <input id="expDate" type="date" value="${e ? (e.date || today) : today}"></div>
+    </div>
+    <div class="field">
+      <label>誰付的 *</label>
+      <select id="expPayer">${people.map(p => `<option value="${esc(p)}" ${e && e.payer === p ? 'selected' : ''}>${esc(p)}</option>`).join('')}</select>
+    </div>
+    <div class="field">
+      <label>分給誰（預設全部）</label>
+      <div class="split-picker" id="expShared">
+        ${people.map(p => `<label class="split-chk"><input type="checkbox" value="${esc(p)}" ${shared.includes(p) ? 'checked' : ''}> ${esc(p)}</label>`).join('')}
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn primary" onclick="saveExpense('${tripId}','${eid || ''}')">儲存</button>
+    </div>
+  `);
+  document.getElementById('expTitle').focus();
+}
+function saveExpense(tripId, eid) {
+  const trip = getTrip(tripId);
+  const title = document.getElementById('expTitle').value.trim();
+  const amount = Number(document.getElementById('expAmount').value) || 0;
+  if (!title) return toast('請輸入項目名稱');
+  if (amount <= 0) return toast('請輸入金額');
+  const payer = document.getElementById('expPayer').value;
+  const sharedBy = [...document.querySelectorAll('#expShared input:checked')].map(c => c.value);
+  if (!sharedBy.length) return toast('請至少勾選一個分攤的人');
+  const prev = eid ? (trip.expenses || []).find(x => x.id === eid) : null;
+  const exp = { id: prev ? prev.id : uid(), title, amount, payer, sharedBy,
+    date: document.getElementById('expDate').value, by: prev ? (prev.by || myName) : myName };
+  if (!trip.expenses) trip.expenses = [];
+  if (prev) { const i = trip.expenses.findIndex(x => x.id === eid); trip.expenses[i] = exp; }
+  else trip.expenses.push(exp);
+  save(); rExpense(trip, exp); closeModal(); render();
+}
+function delExpense(tripId, eid) {
+  const trip = getTrip(tripId);
+  const exp = (trip.expenses || []).find(x => x.id === eid);
+  if (!exp || !confirm(`刪除支出「${exp.title}」？`)) return;
+  trip.expenses = trip.expenses.filter(x => x.id !== eid);
+  save(); rDelExpense(trip, eid); render();
+}
+
+/* ===================== 最短路徑（OSRM 距離矩陣 + TSP） ===================== */
+/* 先讓使用者選起點與是否來回，再計算 */
+function openOptimizeModal(di) {
+  const trip = getTrip(view.tripId);
+  const located = trip.days[di].acts.filter(a => a.loc && !a.flightKey);
+  if (located.length < 3) return toast('請先在至少 3 個活動填「地點」，才需要排最短路徑');
+  const opts = located.map((a, i) => `<option value="${a.id}">${esc(a.title)}</option>`).join('');
+  showModal(`
+    <h3>🧭 排最短路徑</h3>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 12px">用真實路網把這天的地點排成最省車程的順序。<b>會清掉固定時間</b>（航班除外，維持原位）。</p>
+    <div class="field">
+      <label>從哪裡出發（起點）</label>
+      <select id="optStart">${opts}</select>
+    </div>
+    <div class="field">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+        <input type="checkbox" id="optLoop" style="width:auto"> 最後回到起點（來回路線，例如住宿出發再回住宿）
+      </label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn primary" onclick="(function(){const s=document.getElementById('optStart').value,l=document.getElementById('optLoop').checked;closeModal();optimizeDay(${di},s,l);})()">開始計算</button>
+    </div>
+  `);
+}
+
+let optimizing = false;
+async function optimizeDay(di, startId, loop) {
+  if (optimizing) return toast('計算中，請稍候…');
+  if (routing) return toast('路線查詢中，請稍候…');
+  const trip = getTrip(view.tripId);
+  const acts = trip.days[di].acts;
+  seedActCoords(acts);
+  const located = acts.filter(a => a.loc && !a.flightKey);  // 航班活動不參與重排，維持原位
+  if (located.length < 3) return toast('請先在至少 3 個活動填「地點」，才需要排最短路徑');
+
+  optimizing = true;
+  toast('🧭 正在計算最短路徑…');
+  try {
+    const missing = [];
+    for (const a of located) {
+      if (geoCache[a.loc] === undefined) await geocodeSlow(a.loc);
+      if (!geoCache[a.loc]) missing.push(a.loc);
+    }
+    const pts = located.filter(a => geoCache[a.loc]);
+    if (pts.length < 3) { optimizing = false; return toast('可定位的地點不足 3 個' + (missing.length ? `（查不到：${missing.join('、')}）` : '')); }
+
+    const coords = pts.map(a => `${geoCache[a.loc].lon},${geoCache[a.loc].lat}`).join(';');
+    let dur = null, dist = null, usedFallback = false;
+    try {
+      const r = await fetch(`https://router.project-osrm.org/table/v1/driving/${coords}?annotations=duration,distance`);
+      const j = await r.json();
+      if (j.code === 'Ok') { dur = j.durations; dist = j.distances; }
+    } catch (e) { /* 退回直線估算 */ }
+    const n = pts.length;
+    if (!dur) {
+      usedFallback = true;
+      dur = []; dist = [];
+      for (let i = 0; i < n; i++) {
+        dur[i] = []; dist[i] = [];
+        for (let j = 0; j < n; j++) {
+          const km = haversineKm(geoCache[pts[i].loc], geoCache[pts[j].loc]) * 1.3;
+          dist[i][j] = km * 1000; dur[i][j] = km / 40 * 3600;
+        }
+      }
+    }
+
+    let startIdx = 0;
+    if (startId) { const si = pts.findIndex(a => a.id === startId); if (si >= 0) startIdx = si; }
+    const order = solveTSP(dur, startIdx, !!loop);   // 起點可選，loop=來回
+    const optimized = order.map(i => pts[i]);
+    const rest = acts.filter(a => !pts.includes(a));
+    let totMin = 0, totKm = 0;
+    optimized.forEach((a, k) => {
+      delete a.travel;
+      if (k > 0) {
+        const i = order[k - 1], j = order[k];
+        const mins = Math.max(1, Math.round(dur[i][j] / 60)), km = +(dist[i][j] / 1000).toFixed(1);
+        a.travel = { mins, km, est: usedFallback };
+        totMin += mins; totKm += dist[i][j] / 1000;
+      }
+      a.time = '';
+      a.order = k;
+    });
+    rest.forEach((a, k) => { a.order = optimized.length + k; });
+    trip.days[di].acts = [...optimized, ...rest];
+    trip.days[di].acts.forEach(a => { a.di = di; });   // 確保「第幾天」正確
+    sortDay(trip.days[di]);   // 有時間的（如航班）浮回時間位置，無時間的維持最佳順序
+    trip.days[di]._opt = { stops: optimized.length, mins: totMin, km: +totKm.toFixed(1), est: usedFallback };
+    save();
+    if (isShared(trip)) trip.days[di].acts.forEach(a => rAct(trip, a));
+    render();
+    const hh = Math.floor(totMin / 60);
+    toast(`最短路徑完成！${optimized.length} 個點 · 總車程約 ${hh ? hh + 'h ' : ''}${totMin % 60}m / ${totKm.toFixed(1)} km${missing.length ? `（查不到：${missing.join('、')}）` : ''}`);
+  } catch (e) {
+    toast('⚠️ 計算失敗，請確認網路後再試');
+  } finally {
+    optimizing = false;
+  }
+}
+
+/* 最近鄰 + 2-opt（m＝時間矩陣秒數；開放路徑、固定起點 start） */
+function solveTSP(m, start, loop) {
+  const n = m.length;
+  if (n <= 2) return Array.from({ length: n }, (_, i) => i);
+  const visited = new Array(n).fill(false);
+  let route = [start]; visited[start] = true;
+  for (let k = 1; k < n; k++) {
+    const last = route[route.length - 1];
+    let best = -1, bd = Infinity;
+    for (let j = 0; j < n; j++) if (!visited[j] && m[last][j] < bd) { bd = m[last][j]; best = j; }
+    route.push(best); visited[best] = true;
+  }
+  const cost = r => {
+    let c = 0;
+    for (let i = 0; i < r.length - 1; i++) c += m[r[i]][r[i + 1]];
+    if (loop) c += m[r[r.length - 1]][r[0]];
+    return c;
+  };
+  let improved = true;
+  while (improved) {
+    improved = false;
+    for (let i = 1; i < n - 1; i++) {
+      for (let j = i + 1; j < n; j++) {
+        const nr = route.slice(0, i).concat(route.slice(i, j + 1).reverse(), route.slice(j + 1));
+        if (cost(nr) < cost(route) - 1e-6) { route = nr; improved = true; }
+      }
+    }
+  }
+  return route;
+}
+
+/* ===================== 地圖視覺化（Leaflet + OSM） ===================== */
+let leafMap = null;
+function destroyMap() { if (leafMap) { try { leafMap.remove(); } catch (e) {} leafMap = null; } }
+function toggleDayMap() { view.showMap = !view.showMap; if (!view.showMap) destroyMap(); render(); }
+
+function numIcon(n, color) {
+  return L.divIcon({ className: '', html: `<div class="pin-num" style="background:${color}"><span>${n}</span></div>`,
+    iconSize: [26, 26], iconAnchor: [13, 26], popupAnchor: [0, -24] });
+}
+function poolIcon() {
+  return L.divIcon({ className: '', html: '<div class="pin-pool"></div>', iconSize: [14, 14], iconAnchor: [7, 7] });
+}
+/* 查不到座標、待拖曳定位的活動圖釘（橘色、會閃爍提示） */
+function placeIcon(n) {
+  return L.divIcon({ className: '', html: `<div class="pin-num pin-place"><span>${n}</span></div>`,
+    iconSize: [28, 28], iconAnchor: [14, 28], popupAnchor: [0, -26] });
+}
+/* 手動修正過的活動座標（a.lat/a.lon）優先，覆蓋定位結果 */
+function seedActCoords(acts) {
+  acts.forEach(a => { if (a.lat != null && a.lon != null && a.loc) geoCache[a.loc] = { lat: a.lat, lon: a.lon }; });
+}
+
+async function initDayMap(trip, di) {
+  const box = document.getElementById('mapBox');
+  if (!box) return;
+  if (typeof L === 'undefined') { box.innerHTML = '<div class="map-loading">⚠️ 地圖元件未載入，請確認網路連線後重新整理</div>'; return; }
+
+  const acts = trip.days[di].acts.filter(a => a.loc);
+  const pool = trip.pool || [];
+  // 手動修正過的活動座標 & 候選地點座標先餵進快取（覆蓋定位結果）
+  seedActCoords(acts);
+  pool.forEach(p => { if (p.lat != null && p.loc && geoCache[p.loc] === undefined) geoCache[p.loc] = { lat: p.lat, lon: p.lon }; });
+  saveGeo();
+
+  const needGeo = acts.filter(a => geoCache[a.loc] === undefined).length + pool.filter(p => geoCache[p.loc] === undefined).length;
+  if (needGeo) box.innerHTML = '<div class="map-loading">🛰️ 定位地點中…（第一次較慢）</div>';
+
+  for (const a of acts) { if (geoCache[a.loc] === undefined) await geocodeSlow(a.loc); }
+  for (const p of pool) { if (geoCache[p.loc] === undefined) await geocodeSlow(p.loc); }
+  // 期間使用者可能已切換畫面
+  if (view.tripId !== trip.id || view.dayIndex !== di || !view.showMap) return;
+  if (!document.getElementById('mapBox')) return;
+
+  destroyMap();
+  box.innerHTML = '';
+  leafMap = L.map(box, { scrollWheelZoom: true });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 19 }).addTo(leafMap);
+
+  const bounds = [];       // 自動縮放只看當天活動，候選點不算（避免被定位到遠方的候選拉到全世界）
+  const poolBounds = [];
+  // 候選地點（灰點）
+  pool.forEach(p => {
+    const c = geoCache[p.loc];
+    if (!c) return;
+    L.marker([c.lat, c.lon], { icon: poolIcon() }).addTo(leafMap).bindPopup('📍 候選地點<br><b>' + esc(p.name) + '</b>', { autoPanPadding: [30, 60], keepInView: true });
+    poolBounds.push([c.lat, c.lon]);
+  });
+  // 當天有「地點」的活動：有座標的照位置放；查不到座標的放到地圖中央，讓你拖曳定位
+  const located = acts.filter(a => a.loc);
+  const placed = [], unplaced = [];
+  located.forEach((a, idx) => {
+    const c = (a.lat != null && a.lon != null) ? { lat: a.lat, lon: a.lon } : geoCache[a.loc];
+    if (c) { placed.push({ a, c, idx }); bounds.push([c.lat, c.lon]); }
+    else unplaced.push({ a, idx });
+  });
+
+  // 先決定視野（用有座標的活動；都沒有就退候選點，再不然預設香港）
+  const fit = bounds.length ? bounds : poolBounds;
+  if (fit.length === 1) leafMap.setView(fit[0], 13);
+  else if (fit.length) leafMap.fitBounds(fit, { padding: [34, 34], maxZoom: 15 });
+  else leafMap.setView([22.30, 114.17], 11);
+  box.querySelector('.map-loading') && box.querySelector('.map-loading').remove();
+
+  const actMarkers = [];   // { marker, a, idx }
+  let dayLine = null, roadLine = null, roadReqId = 0;
+  const orderedCoords = () => actMarkers
+    .filter(am => am.a.lat != null || geoCache[am.a.loc])
+    .sort((p, q) => p.idx - q.idx)
+    .map(am => am.marker.getLatLng());
+  async function drawRoadRoute() {
+    const lls = orderedCoords();
+    if (lls.length < 2) { if (roadLine) { leafMap.removeLayer(roadLine); roadLine = null; } return; }
+    const myReq = ++roadReqId;
+    try {
+      const coords = lls.map(ll => ll.lng + ',' + ll.lat).join(';');
+      const r = await fetch(`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`);
+      const j = await r.json();
+      if (myReq !== roadReqId || !leafMap) return;
+      if (j.code === 'Ok' && j.routes && j.routes[0]) {
+        const latlngs = j.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+        if (roadLine) roadLine.setLatLngs(latlngs);
+        else roadLine = L.polyline(latlngs, { color: CAT_HEX.sight, weight: 4, opacity: .85 }).addTo(leafMap);
+        if (dayLine) dayLine.setStyle({ opacity: .2 });   // 真實路徑出現後，直線淡化成輔助
+      }
+    } catch (e) { /* OSRM 失敗就保留直線 */ }
+  }
+  const redrawLine = () => {
+    const pts = orderedCoords();
+    if (pts.length > 1) {
+      if (dayLine) dayLine.setLatLngs(pts);
+      else dayLine = L.polyline(pts, { color: CAT_HEX.sight, weight: 3, opacity: .55, dashArray: '6,7' }).addTo(leafMap);
+    } else if (dayLine) dayLine.setLatLngs([]);
+    drawRoadRoute();
+  };
+  const setActLoc = (a, lat, lon) => {
+    a.lat = +lat.toFixed(6); a.lon = +lon.toFixed(6);
+    let alsoFixed = 0;
+    if (a.loc) {
+      geoCache[a.loc] = { lat: a.lat, lon: a.lon }; saveGeo();
+      // 同地點的其他活動（例如早晚都用同一間飯店）一起定位，並移動其圖釘
+      trip.days.forEach(d => d.acts.forEach(s => {
+        if (s !== a && s.loc === a.loc) { s.lat = a.lat; s.lon = a.lon; delete s.travel; rAct(trip, s); alsoFixed++; }
+      }));
+      actMarkers.forEach(am => { if (am.a.loc === a.loc) am.marker.setLatLng([a.lat, a.lon]); });
+    }
+    delete a.travel;
+    save(); rAct(trip, a);
+    redrawLine();
+    toast(`已更新「${a.title}」的位置${alsoFixed ? `（同地點 ${alsoFixed} 處一起更新）` : ''}`);
+  };
+  const onActDragEnd = (m, a) => setActLoc(a, m.getLatLng().lat, m.getLatLng().lng);
+
+  // 手機友善：點圖釘選「點地圖設定位置」後，下一次點地圖就把該活動移過去（免拖曳）
+  let placingActId = null;
+  window.__armPlace = id => {
+    placingActId = id;
+    if (leafMap) leafMap.closePopup();
+    toast('👆 請點一下地圖上正確的位置');
+  };
+  leafMap.on('click', e => {
+    if (!placingActId) return;
+    const am = actMarkers.find(x => x.a.id === placingActId);
+    placingActId = null;
+    if (am) setActLoc(am.a, e.latlng.lat, e.latlng.lng);
+  });
+  const placeBtn = a => a.flightKey ? '' : `<br><button class="map-place-btn" onclick="window.__armPlace('${a.id}')">📍 點地圖設定位置</button>`;
+
+  // 有座標的活動
+  placed.forEach(({ a, c, idx }) => {
+    const color = CAT_HEX[a.cat] || CAT_HEX.other;
+    const m = L.marker([c.lat, c.lon], { icon: numIcon(idx + 1, color), draggable: !a.flightKey }).addTo(leafMap);
+    m.bindPopup(`<b>${idx + 1}. ${esc(a.title)}</b>${a.time ? '<br>🕐 ' + a.time : ''}${a.loc ? '<br>📍 ' + esc(a.loc) : ''}${a.flightKey ? '' : '<br><span style="color:#6b7384;font-size:11.5px">位置不對？拖曳圖釘，或：</span>' + placeBtn(a)}`,
+      { autoPanPadding: [30, 60], keepInView: true });
+    if (!a.flightKey) m.on('dragend', () => onActDragEnd(m, a));
+    actMarkers.push({ marker: m, a, idx });
+  });
+
+  // 查不到座標的活動：放到地圖中央附近（橘色醒目），請你拖到正確位置
+  const ctr = leafMap.getCenter();
+  unplaced.forEach(({ a, idx }, k) => {
+    const pos = [ctr.lat + 0.006 * (k + 1), ctr.lng + 0.006 * (k + 1)];
+    const m = L.marker(pos, { icon: placeIcon(idx + 1), draggable: true, zIndexOffset: 1000 }).addTo(leafMap);
+    m.bindPopup(`<b>${idx + 1}. ${esc(a.title)}</b><br><span style="color:#e8843c;font-size:12px">⚠️ 自動定位找不到「${esc(a.loc)}」</span>${placeBtn(a)}`,
+      { autoPanPadding: [30, 60], keepInView: true });
+    m.on('dragend', () => onActDragEnd(m, a));
+    actMarkers.push({ marker: m, a, idx });
+  });
+
+  redrawLine();
+
+  if (!placed.length && !unplaced.length && !poolBounds.length) {
+    const note = document.createElement('div');
+    note.className = 'map-loading'; note.style.position = 'absolute'; note.style.inset = '0'; note.style.zIndex = 500;
+    note.style.background = 'rgba(238,242,247,.85)'; note.textContent = '這天還沒有可定位的地點，加上有「地點」的活動或匯入候選地點吧';
+    box.appendChild(note);
+  }
+  setTimeout(() => { if (leafMap) leafMap.invalidateSize(); }, 120);
+}
+
+/* 行程表總覽：每天一張地圖 */
+let ovMaps = [];
+function destroyOvMaps() { ovMaps.forEach(m => { try { m.remove(); } catch (e) {} }); ovMaps = []; }
+async function initOverviewMaps(trip) {
+  if (typeof L === 'undefined') return;
+  destroyOvMaps();
+  const n = tripDays(trip);
+  for (let di = 0; di < n; di++) {
+    if (view.page !== 'overview' || view.tripId !== trip.id) return;
+    const acts = trip.days[di].acts.filter(a => a.loc);
+    if (!acts.length) continue;
+    seedActCoords(acts);
+    for (const a of acts) { if (geoCache[a.loc] === undefined) await geocodeSlow(a.loc); }
+    if (view.page !== 'overview' || view.tripId !== trip.id) return;
+    const box = document.getElementById('ovmap-' + di);
+    if (!box) continue;
+    const located = acts.map(a => ({ a, c: geoCache[a.loc] })).filter(x => x.c);
+    if (!located.length) { box.querySelector('.map-loading').textContent = '（這天的地點查不到座標）'; continue; }
+    box.innerHTML = '';
+    const map = L.map(box, { scrollWheelZoom: false });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 19 }).addTo(map);
+    const line = [], bounds = [];
+    located.forEach((x, i) => {
+      const color = CAT_HEX[x.a.cat] || CAT_HEX.other;
+      L.marker([x.c.lat, x.c.lon], { icon: numIcon(i + 1, color) }).addTo(map)
+        .bindPopup(`<b>${i + 1}. ${esc(x.a.title)}</b>${x.a.time ? '<br>🕐 ' + x.a.time : ''}`, { autoPanPadding: [25, 50], keepInView: true });
+      line.push([x.c.lat, x.c.lon]); bounds.push([x.c.lat, x.c.lon]);
+    });
+    if (line.length > 1) L.polyline(line, { color: CAT_HEX.sight, weight: 3, opacity: .75, dashArray: '6,7' }).addTo(map);
+    map.fitBounds(bounds, { padding: [26, 26], maxZoom: 15 });
+    ovMaps.push(map);
+    setTimeout(() => map.invalidateSize(), 150);
+  }
+}
+
+/* ===================== 加入共編（貼邀請連結） ===================== */
+function openJoinModal() {
+  showModal(`
+    <h3>🔗 加入別人的共編</h3>
+    <p style="font-size:13px;color:var(--ink-soft);margin:-6px 0 12px">把同伴傳給你的「邀請連結」整段貼進來即可加入（連結裡已含設定，不用另外設定 Firebase）。</p>
+    <textarea id="joinInput" class="share-link" rows="3" placeholder="貼上邀請連結，例如 https://...?room=...&cfg=..."></textarea>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn primary" onclick="joinByLink()">加入</button>
+    </div>
+  `);
+  document.getElementById('joinInput').focus();
+}
+function joinByLink() {
+  const raw = document.getElementById('joinInput').value.trim();
+  if (!raw) return toast('請貼上邀請連結');
+  let room = null, cfgStr = null;
+  try {
+    const u = new URL(raw);
+    room = u.searchParams.get('room'); cfgStr = u.searchParams.get('cfg');
+  } catch (e) {
+    const mR = raw.match(/[?&]room=([^&\s]+)/), mC = raw.match(/[?&]cfg=([^&\s]+)/);
+    room = mR ? decodeURIComponent(mR[1]) : null; cfgStr = mC ? mC[1] : null;
+  }
+  if (cfgStr) { try { if (!initFirebase(b64decode(cfgStr))) return; } catch (e) { return toast('連結裡的設定看不懂，請確認複製完整'); } }
+  if (!db) return toast('需要「含設定」的完整邀請連結才能加入');
+  if (!room) return toast('連結缺少房號');
+  ensureName();
+  let trip = state.trips.find(t => t.roomId === room);
+  const today = new Date().toISOString().slice(0, 10);
+  if (!trip) {
+    trip = { id: uid(), roomId: room, name: '共享行程', start: today, end: today, budget: 0, currency: 'NT$', rate: 0, days: [] };
+    syncDays(trip); state.trips.push(trip);
+  }
+  subscribeRoom(trip);
+  view = { page: 'trip', tripId: trip.id, dayIndex: 0 };
+  closeModal(); render(); toast('已加入共編，載入中…');
+}
+
+/* ===================== 候選地點側欄（Google Maps 匯入 → 拖曳進行程） ===================== */
+function renderTray(trip) {
+  const pool = trip.pool || [];
+  let html = `
+    <aside class="tray">
+      <h3>📍 候選地點 <span class="tray-badge">${pool.length}</span></h3>
+      <div class="hint">從 Google 地圖匯入想去的點，<b>拖曳</b>或按「＋加入」放進某天行程。</div>
+      <div class="tray-actions">
+        <button class="btn small" onclick="openAddPlaceModal('${trip.id}')">＋ 加地點</button>
+        <button class="btn small" onclick="triggerMapImport('${trip.id}')">📥 匯入地圖</button>
+      </div>`;
+  if (!pool.length) {
+    html += `<div class="tray-empty">還沒有候選地點。<br>按「＋ 加地點」貼上地名或 Google 地圖連結，<br>或「📥 匯入地圖」上傳 Google Takeout / 我的地圖檔案。</div>`;
+  } else {
+    html += '<div class="tray-list">';
+    pool.forEach(p => {
+      html += `
+        <div class="tray-card" draggable="true" data-pool="${p.id}">
+          <button class="tc-del" title="移除" onclick="poolDelete('${trip.id}','${p.id}')">✕</button>
+          <div class="tc-name">${esc(p.name)}</div>
+          ${p.loc && p.loc !== p.name ? `<div class="tc-sub">📍 ${esc(p.loc)}</div>` : (p.lat != null ? `<div class="tc-sub">📍 ${p.lat.toFixed(4)}, ${p.lon.toFixed(4)}</div>` : '')}
+          <div class="tc-row">
+            <button class="btn" onclick="addActFromPool(${view.dayIndex},'${p.id}')">＋ 加到第 ${view.dayIndex + 1} 天</button>
+          </div>
+        </div>`;
+    });
+    html += '</div>';
+    html += `<div style="margin-top:10px;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+      <button class="btn small" onclick="cleanFarPool('${trip.id}')" title="刪掉離行程地點太遠的候選（如定位錯到外地的）">🧹 清掉遠方的</button>
+      <button class="btn small danger-text" onclick="poolClear('${trip.id}')">清空候選</button></div>`;
+  }
+  html += '</aside>';
+  return html;
+}
+
+function bindTray(trip) {
+  let dragPoolId = null;
+  app.querySelectorAll('.tray-card').forEach(card => {
+    card.addEventListener('dragstart', e => {
+      dragPoolId = card.dataset.pool;
+      e.dataTransfer.setData('text/pool', dragPoolId);
+      e.dataTransfer.effectAllowed = 'copy';
+      card.classList.add('dragging');
+    });
+    card.addEventListener('dragend', () => { card.classList.remove('dragging'); dragPoolId = null; });
+  });
+  // 放到某一天的分頁，或放到當天面板
+  const onOver = el => e => { if (dragPoolId || (e.dataTransfer && [...e.dataTransfer.types].includes('text/pool'))) { e.preventDefault(); el.classList.add('drop-active'); } };
+  const onLeave = el => () => el.classList.remove('drop-active');
+  app.querySelectorAll('.day-tab[data-daytab]').forEach(tab => {
+    tab.addEventListener('dragover', onOver(tab));
+    tab.addEventListener('dragleave', onLeave(tab));
+    tab.addEventListener('drop', e => {
+      const id = e.dataTransfer.getData('text/pool'); tab.classList.remove('drop-active');
+      if (id) { e.preventDefault(); addActFromPool(Number(tab.dataset.daytab), id); }
+    });
+  });
+  const panel = app.querySelector('.day-panel');
+  if (panel) {
+    panel.addEventListener('dragover', onOver(panel));
+    panel.addEventListener('dragleave', e => { if (!panel.contains(e.relatedTarget)) panel.classList.remove('drop-active'); });
+    panel.addEventListener('drop', e => {
+      const id = e.dataTransfer.getData('text/pool'); panel.classList.remove('drop-active');
+      if (id) { e.preventDefault(); addActFromPool(view.dayIndex, id); }
+    });
+  }
+}
+
+function poolAdd(trip, item) {
+  if (!trip.pool) trip.pool = [];
+  trip.pool.push({ id: uid(), name: item.name, loc: item.loc || item.name,
+    lat: item.lat != null ? item.lat : null, lon: item.lon != null ? item.lon : null });
+}
+function poolDelete(tripId, id) {
+  const trip = getTrip(tripId);
+  trip.pool = (trip.pool || []).filter(p => p.id !== id);
+  save(); render();
+}
+function poolClear(tripId) {
+  if (!confirm('清空所有候選地點？（不影響已加進行程的活動）')) return;
+  const trip = getTrip(tripId);
+  trip.pool = [];
+  save(); render();
+}
+
+/* 刪掉離行程地點太遠的候選（例如定位錯到外地的）。以行程裡的活動位置當基準。 */
+let cleaningPool = false;
+async function cleanFarPool(tripId) {
+  if (cleaningPool) return toast('處理中，請稍候…');
+  const trip = getTrip(tripId);
+  const pool = trip.pool || [];
+  if (!pool.length) return toast('沒有候選地點');
+
+  // 參考中心：所有有座標的活動
+  const actC = [];
+  trip.days.forEach(d => d.acts.forEach(a => {
+    if (a.flightKey) return;
+    const c = (a.lat != null && a.lon != null) ? { lat: a.lat, lon: a.lon } : geoCache[a.loc];
+    if (c) actC.push(c);
+  }));
+  if (!actC.length) return toast('行程裡還沒有「有地點」的活動可當基準。先在某天加幾個香港的活動再試。');
+  const center = { lat: actC.reduce((s, c) => s + c.lat, 0) / actC.length, lon: actC.reduce((s, c) => s + c.lon, 0) / actC.length };
+  const FAR_KM = 200;  // 超過 200 公里視為「遠方」（香港很小，足以區分外地）
+
+  cleaningPool = true;
+  toast('🧹 正在檢查候選地點位置…');
+  try {
+    const keep = [], removed = [], unknown = [];
+    for (const p of pool) {
+      let c = (p.lat != null && p.lon != null) ? { lat: p.lat, lon: p.lon } : geoCache[p.loc];
+      if (c === undefined) { await geocodeSlow(p.loc); c = geoCache[p.loc]; }
+      if (!c) { unknown.push(p); keep.push(p); continue; }   // 查不到位置的先保留
+      if (haversineKm(center, c) > FAR_KM) removed.push(p); else keep.push(p);
+    }
+    if (!removed.length) { cleaningPool = false; return toast('沒有離行程太遠的候選' + (unknown.length ? `（${unknown.length} 個查不到位置，已保留）` : '')); }
+    if (!confirm(`找到 ${removed.length} 個離行程很遠的候選（例：${removed.slice(0, 3).map(p => p.name).join('、')}${removed.length > 3 ? '…' : ''}），要刪掉嗎？\n會保留 ${keep.length} 個。`)) { cleaningPool = false; return; }
+    trip.pool = keep;
+    save(); render();
+    toast(`已刪掉 ${removed.length} 個遠方候選${unknown.length ? `（${unknown.length} 個查不到位置，保留）` : ''}`);
+  } catch (e) {
+    toast('⚠️ 檢查失敗，請確認網路後再試');
+  } finally {
+    cleaningPool = false;
+  }
+}
+
+function addActFromPool(di, poolId) {
+  const trip = getTrip(view.tripId);
+  const item = (trip.pool || []).find(p => p.id === poolId);
+  if (!item) return;
+  if (item.lat != null && item.lon != null && item.loc) { geoCache[item.loc] = { lat: item.lat, lon: item.lon }; saveGeo(); }
+  const act = { id: uid(), di, order: Date.now(), by: myName, title: item.name, cat: 'sight',
+    time: '', cost: 0, loc: item.loc || item.name, note: '' };
+  trip.days[di].acts.push(act);
+  sortDay(trip.days[di]);
+  save(); render();
+  rAct(trip, act);
+  toast(`已把「${item.name}」加到第 ${di + 1} 天`);
+}
+
+/* ---- 新增候選：貼地名或 Google 地圖連結（每行一個） ---- */
+function openAddPlaceModal(tripId) {
+  showModal(`
+    <h3>＋ 加候選地點</h3>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 10px">每行一個，可以是<b>地名</b>（淺草寺 東京）或<b>Google 地圖連結</b>。連結會自動抓出名稱與座標。</p>
+    <div class="field">
+      <textarea id="placeInput" class="share-link" rows="6" placeholder="淺草寺 東京&#10;https://www.google.com/maps/place/...&#10;晴空塔"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn primary" onclick="addPlacesFromText('${tripId}')">加入候選</button>
+    </div>
+  `);
+  document.getElementById('placeInput').focus();
+}
+function addPlacesFromText(tripId) {
+  const trip = getTrip(tripId);
+  const lines = document.getElementById('placeInput').value.split('\n').map(s => s.trim()).filter(Boolean);
+  if (!lines.length) return toast('請至少輸入一個地點');
+  let added = 0, skipped = 0;
+  for (const line of lines) {
+    const item = parsePlaceLine(line);
+    if (item) { poolAdd(trip, item); added++; } else skipped++;
+  }
+  save(); closeModal(); render();
+  toast(`已加入 ${added} 個候選地點${skipped ? `（${skipped} 個短網址無法解析，請貼完整連結或地名）` : ''}`);
+}
+
+/* 解析一行：Google 地圖連結 → {name, loc, lat, lon}；否則當地名 */
+function parsePlaceLine(line) {
+  if (/maps\.app\.goo\.gl|goo\.gl\/maps/i.test(line)) return null; // 短網址無法離線解析
+  if (/google\.[^/]+\/maps|\/maps\/place/i.test(line)) {
+    let name = '', lat = null, lon = null;
+    const mName = line.match(/\/place\/([^/@]+)/);
+    if (mName) name = decodeURIComponent(mName[1].replace(/\+/g, ' ')).trim();
+    let mC = line.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);     // place 詳細座標
+    if (!mC) mC = line.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);    // @lat,lng
+    if (!mC) mC = line.match(/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/); // q=lat,lng
+    if (mC) { lat = +mC[1]; lon = +mC[2]; }
+    if (!name && lat != null) name = `地點 ${lat.toFixed(3)},${lon.toFixed(3)}`;
+    if (!name) return null;
+    return { name, loc: name, lat, lon };
+  }
+  return { name: line, loc: line };
+}
+
+/* ---- 匯入地圖檔：Google Takeout(GeoJSON) / 我的地圖(KML) / CSV ---- */
+function triggerMapImport(tripId) {
+  let inp = document.getElementById('mapFileInput');
+  if (!inp) {
+    inp = document.createElement('input');
+    inp.type = 'file'; inp.id = 'mapFileInput'; inp.accept = '.json,.geojson,.kml,.csv,.txt'; inp.hidden = true;
+    document.body.appendChild(inp);
+  }
+  inp.value = '';
+  inp.onchange = e => { const f = e.target.files[0]; if (f) handleMapFile(tripId, f); };
+  inp.click();
+}
+function handleMapFile(tripId, file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    const trip = getTrip(tripId);
+    const text = reader.result;
+    let items = [];
+    try {
+      const name = file.name.toLowerCase();
+      if (name.endsWith('.kml') || /<kml[\s>]/i.test(text)) items = parseKML(text);
+      else if (name.endsWith('.csv') || name.endsWith('.txt')) items = parsePlacesCSV(text);
+      else items = parseGeoJSON(text); // .json / .geojson
+    } catch (e) { return toast('檔案讀取失敗：' + e.message); }
+    if (!items.length) return toast('這個檔案裡找不到地點');
+    items.forEach(it => poolAdd(trip, it));
+    save(); render();
+    toast(`已從檔案匯入 ${items.length} 個地點`);
+  };
+  reader.readAsText(file);
+}
+function parseGeoJSON(text) {
+  const data = JSON.parse(text);
+  const feats = data.features || (Array.isArray(data) ? data : []);
+  const out = [];
+  for (const f of feats) {
+    const p = f.properties || {};
+    const name = p.Title || p.name || (p.location && (p.location.name || p.location.Name)) || p['Business Name'] || '';
+    let lat = null, lon = null;
+    if (f.geometry && f.geometry.type === 'Point' && Array.isArray(f.geometry.coordinates)) {
+      lon = +f.geometry.coordinates[0]; lat = +f.geometry.coordinates[1];
+    }
+    const addr = (p.location && (p.location.Address || p.location.address)) || p.Address || '';
+    if (name || lat != null) out.push({ name: name || `地點 ${lat},${lon}`, loc: name || addr || `${lat},${lon}`, lat, lon });
+  }
+  return out;
+}
+function parseKML(text) {
+  const doc = new DOMParser().parseFromString(text, 'text/xml');
+  const out = [];
+  doc.querySelectorAll('Placemark').forEach(pm => {
+    const name = (pm.querySelector('name') ? pm.querySelector('name').textContent : '').trim();
+    const coordEl = pm.querySelector('Point > coordinates') || pm.querySelector('coordinates');
+    let lat = null, lon = null;
+    if (coordEl) { const c = coordEl.textContent.trim().split(','); lon = +c[0]; lat = +c[1]; }
+    if (name || lat != null) out.push({ name: name || `地點 ${lat},${lon}`, loc: name || `${lat},${lon}`, lat, lon });
+  });
+  return out;
+}
+function parsePlacesCSV(text) {
+  const out = [];
+  text.split(/\r?\n/).forEach((line, i) => {
+    line = line.trim(); if (!line) return;
+    // 跳過明顯的表頭
+    if (i === 0 && /title|name|地點|名稱/i.test(line) && !/\d/.test(line)) return;
+    // 若整行是 Google 連結
+    const g = parsePlaceLine(line);
+    const cols = line.split(',').map(s => s.trim());
+    const urlInRow = cols.find(c => /\/maps\/place|google\.[^/]+\/maps/i.test(c));
+    if (urlInRow) { const it = parsePlaceLine(urlInRow); if (it) { it.name = cols[0] && !/http/i.test(cols[0]) ? cols[0] : it.name; out.push(it); return; } }
+    if (cols.length >= 3 && !isNaN(+cols[1]) && !isNaN(+cols[2])) { out.push({ name: cols[0], loc: cols[0], lat: +cols[1], lon: +cols[2] }); return; }
+    if (g && g.name) out.push({ name: cols[0] || g.name, loc: cols[0] || g.name });
+  });
+  return out;
+}
+
+/* ===================== 航班 ===================== */
+function parseDT(date, time) {
+  if (!date || !time) return null;
+  const d = new Date(date + 'T' + time);
+  return isNaN(d.getTime()) ? null : d;
+}
+function addMins(d, m) { return new Date(d.getTime() + m * 60000); }
+function fmtHM(d) { return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; }
+function fmtMD(d) { return `${d.getMonth() + 1}/${d.getDate()}（${WEEKDAYS[d.getDay()]}）`; }
+function durLabel(mins) {
+  if (mins == null || mins < 0) return '';
+  const h = Math.floor(mins / 60), m = mins % 60;
+  return `${h > 0 ? h + ' 小時 ' : ''}${m} 分`;
+}
+/* 飛行時間：依填寫的當地時間計算（跨時區僅供參考） */
+function flightDurMins(f) {
+  const dep = parseDT(f.depDate, f.depTime), arr = parseDT(f.arrDate, f.arrTime);
+  if (!dep || !arr) return null;
+  const m = Math.round((arr - dep) / 60000);
+  return m > 0 ? m : null;
+}
+/* 建議出門時刻 = 起飛 −（報到安檢預留 ＋ 到機場通勤） */
+function leaveTime(f) {
+  const dep = parseDT(f.depDate, f.depTime);
+  if (!dep) return null;
+  const lead = (Number(f.checkin) || 0) + (Number(f.commute) || 0);
+  return addMins(dep, -lead);
+}
+function hasFlight(f) { return f && (f.depTime || f.arrTime || f.airline || f.depAirport); }
+
+/* 把航班自動同步成行程裡的交通活動（去/回各一筆，掛 flightKey 以便更新不重複） */
+function dayDateISO(trip, i) {
+  const d = dayDate(trip, i);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function findDayIndexByDate(trip, dateStr) {
+  if (!dateStr) return -1;
+  for (let i = 0; i < tripDays(trip); i++) if (dayDateISO(trip, i) === dateStr) return i;
+  return -1;
+}
+function syncFlightActs(trip) {
+  syncDays(trip);
+  // 先移除舊的航班活動（含遠端）；連被誤編輯而失去 flightKey 的殘留（標題仍是「✈️ 搭機」）一併清掉
+  trip.days.forEach(d => {
+    const keep = [];
+    d.acts.forEach(a => { if (a.flightKey || /^✈️ 搭機 /.test(a.title || '')) rDelAct(trip, a.id); else keep.push(a); });
+    d.acts = keep;
+  });
+  const f = trip.flights || {};
+  ['out', 'back'].forEach(key => {
+    const fl = f[key];
+    if (!hasFlight(fl) || !fl.depTime) return;  // 至少要有起飛時間才放得進時間軸
+    let di = findDayIndexByDate(trip, fl.depDate);
+    if (di < 0) di = key === 'out' ? 0 : tripDays(trip) - 1;
+    const note = [];
+    if (fl.arrTime) note.push(`🛬 ${fl.arrTime} 抵達${fl.arrAirport ? ' ' + fl.arrAirport : ''}`);
+    const lead = (Number(fl.checkin) || 0) + (Number(fl.commute) || 0);
+    const lv = leaveTime(fl);
+    if (lead > 0 && lv) note.push(`🏠 建議 ${key === 'out' ? fmtMD(lv) + ' ' : ''}${fmtHM(lv)} 出發前往機場`);
+    if (fl.airline) note.push(`航班 ${fl.airline}`);
+    const act = {
+      id: uid(), di, order: -1, by: myName,
+      title: `✈️ 搭機 ${fl.depAirport || '出發'} → ${fl.arrAirport || '抵達'}`,
+      cat: 'transport', time: fl.depTime || '', cost: 0, loc: fl.depAirport || '',
+      note: note.join('\n'), flightKey: key
+    };
+    trip.days[di].acts.push(act);
+    sortDay(trip.days[di]);
+    rAct(trip, act);
+  });
+}
+
+/* 一張航班卡（去程 out / 回程 back） */
+function flightCardHtml(trip, key, editable) {
+  const f = (trip.flights || {})[key];
+  const label = key === 'out' ? '去程 OUTBOUND' : '回程 RETURN';
+  if (!hasFlight(f)) return '';
+  const dep = parseDT(f.depDate, f.depTime), arr = parseDT(f.arrDate, f.arrTime);
+  const dur = flightDurMins(f);
+  const lv = leaveTime(f);
+  const lead = (Number(f.checkin) || 0) + (Number(f.commute) || 0);
+  const meta = `🚕 通勤 ${Number(f.commute) || 0} 分　🛂 報到/安檢預留 ${Number(f.checkin) || 0} 分　🛫 ${f.depTime || '--:--'} 起飛`;
+  const verb = key === 'out' ? '🏠 建議 ' : '🏨 建議 ';
+  const tail = key === 'out' ? ' 出門' : ' 從住宿出發前往機場';
+  let leaveHtml = '';
+  if (lead > 0 && lv) {
+    leaveHtml = `<div class="fc-leave">${verb}<span class="big">${fmtMD(lv)} ${fmtHM(lv)}</span>${tail}<br>${meta}</div>`;
+  } else {
+    leaveHtml = `<div class="fc-leave">⚠️ 填「通勤」與「報到/安檢預留」分鐘數，就會自動算出發時刻<br>${meta}</div>`;
+  }
+  return `
+    <div class="flight-card ${key}">
+      ${editable ? `<button class="fc-edit" title="編輯航班" onclick="openFlightModal('${trip.id}')">✏️</button>` : ''}
+      <span class="fc-tag">${label}</span>${f.airline ? `<span class="fc-no">${esc(f.airline)}</span>` : ''}
+      <div class="fc-route">
+        <div class="fc-end">
+          <div class="ap">${esc(f.depAirport || '出發')}</div>
+          <div class="tm">${f.depTime || '--:--'}</div>
+          <div class="dt">${dep ? fmtMD(dep) : ''}</div>
+        </div>
+        <div class="fc-mid">
+          <div class="arrow">✈︎</div>
+          <div class="pl">${dur ? '飛行 ' + durLabel(dur) : '直飛'}</div>
+        </div>
+        <div class="fc-end">
+          <div class="ap">${esc(f.arrAirport || '抵達')}</div>
+          <div class="tm">${f.arrTime || '--:--'}</div>
+          <div class="dt">${arr ? fmtMD(arr) : ''}</div>
+        </div>
+      </div>
+      ${leaveHtml}
+    </div>`;
+}
+
+/* 航班區塊（兩張卡 + 沒填時的引導） */
+function flightsBlockHtml(trip, editable) {
+  const f = trip.flights || {};
+  const hasAny = hasFlight(f.out) || hasFlight(f.back);
+  if (!hasAny) {
+    if (!editable) return '';
+    return `<div class="flights-wrap"><div class="flight-empty">
+      ✈️ 還沒填航班。加上去回程班機後，工具會幫你算「幾點該出門」與飛行時間。
+      <br><button class="btn small" onclick="openFlightModal('${trip.id}')">＋ 加入航班資訊</button>
+    </div></div>`;
+  }
+  return `<div class="flights-wrap">
+    ${flightCardHtml(trip, 'out', editable)}
+    ${flightCardHtml(trip, 'back', editable)}
+  </div>`;
+}
+
+function flightSide(key, f) {
+  const sub = key === 'out' ? '🛫 去程' : '🛬 回程';
+  const defCheckin = key === 'out' ? 120 : 120;
+  return `
+    <div class="flight-sub">${sub}</div>
+    <div class="field">
+      <label>航空公司 / 航班號</label>
+      <input id="f_${key}_airline" maxlength="40" placeholder="例：長榮 BR198" value="${f ? esc(f.airline || '') : ''}">
+    </div>
+    <div class="field-row">
+      <div class="field"><label>出發機場</label>
+        <input id="f_${key}_dep" maxlength="30" placeholder="例：桃園 TPE" value="${f ? esc(f.depAirport || '') : ''}"></div>
+      <div class="field"><label>抵達機場</label>
+        <input id="f_${key}_arr" maxlength="30" placeholder="例：那霸 OKA" value="${f ? esc(f.arrAirport || '') : ''}"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>起飛日期</label>
+        <input id="f_${key}_ddate" type="date" value="${f ? (f.depDate || '') : ''}"></div>
+      <div class="field"><label>起飛時間</label>
+        <input id="f_${key}_dtime" type="time" value="${f ? (f.depTime || '') : ''}"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>抵達日期</label>
+        <input id="f_${key}_adate" type="date" value="${f ? (f.arrDate || '') : ''}"></div>
+      <div class="field"><label>抵達時間</label>
+        <input id="f_${key}_atime" type="time" value="${f ? (f.arrTime || '') : ''}"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>到機場通勤（分）</label>
+        <input id="f_${key}_commute" type="number" min="0" placeholder="例：50" value="${f && f.commute ? f.commute : ''}"></div>
+      <div class="field"><label>報到/安檢預留（分）</label>
+        <input id="f_${key}_checkin" type="number" min="0" placeholder="國際線建議 120" value="${f && f.checkin ? f.checkin : defCheckin}"></div>
+    </div>`;
+}
+
+function openFlightModal(id) {
+  const trip = getTrip(id);
+  const f = trip.flights || {};
+  showModal(`
+    <h3>✈️ 航班資訊</h3>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:-8px 0 14px">填好起飛/抵達時間與通勤、報到預留，工具會自動算「建議幾點出門」。時間請填當地時間。</p>
+    ${flightSide('out', f.out)}
+    <div style="height:6px"></div>
+    ${flightSide('back', f.back)}
+    <div class="modal-actions">
+      <button class="btn danger-text" onclick="clearFlights('${id}')">清除</button>
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn primary" onclick="saveFlightModal('${id}')">儲存</button>
+    </div>
+  `);
+}
+
+function readFlightSide(key) {
+  const g = sfx => document.getElementById(`f_${key}_${sfx}`).value;
+  return {
+    airline: g('airline').trim(),
+    depAirport: g('dep').trim(),
+    arrAirport: g('arr').trim(),
+    depDate: g('ddate'), depTime: g('dtime'),
+    arrDate: g('adate'), arrTime: g('atime'),
+    commute: Number(g('commute')) || 0,
+    checkin: Number(g('checkin')) || 0,
+  };
+}
+
+function saveFlightModal(id) {
+  const trip = getTrip(id);
+  trip.flights = { out: readFlightSide('out'), back: readFlightSide('back') };
+  syncFlightActs(trip);
+  save(); closeModal(); render();
+  rInfo(trip);
+  toast('已儲存航班，並自動加進行程');
+}
+
+function clearFlights(id) {
+  if (!confirm('清除這個行程的航班資訊？（行程裡自動產生的航班活動也會移除）')) return;
+  const trip = getTrip(id);
+  delete trip.flights;
+  syncFlightActs(trip);
+  save(); closeModal(); render();
+  rInfo(trip);
+  toast('已清除航班');
+}
+
+function deleteTrip(id) {
+  const t = getTrip(id);
+  if (!t) return;
+  const msg = t.roomId
+    ? `確定刪除「${t.name}」？只會從你這台裝置移除（同伴的雲端行程不受影響）。`
+    : `確定刪除「${t.name}」？此操作無法復原。`;
+  if (!confirm(msg)) return;
+  // 共編行程要先退訂同步，否則監聽器一有動靜會把行程「復活」
+  if (t.roomId && activeRoomId === t.roomId) unsubscribeRoom();
+  state.trips = state.trips.filter(x => x.id !== id);
+  save(); render(); toast('已刪除行程');
+}
+
+function deleteAct(di, ai) {
+  const trip = getTrip(view.tripId);
+  const act = trip.days[di].acts[ai];
+  if (!confirm(`刪除「${act.title}」？`)) return;
+  trip.days[di].acts.splice(ai, 1);
+  save(); render(); toast('已刪除活動');
+  rDelAct(trip, act.id);
+}
+
+/* ---- 行程 Modal ---- */
+function openTripModal(id) {
+  const t = id ? getTrip(id) : null;
+  const today = new Date().toISOString().slice(0, 10);
+  showModal(`
+    <h3>${t ? '編輯行程' : '新增行程'}</h3>
+    <div class="field">
+      <label>行程名稱 *</label>
+      <input id="mTripName" maxlength="40" placeholder="例如：東京五日遊" value="${t ? esc(t.name) : ''}">
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>出發日期 *</label>
+        <input id="mTripStart" type="date" value="${t ? t.start : today}">
+      </div>
+      <div class="field">
+        <label>回程日期 *</label>
+        <input id="mTripEnd" type="date" value="${t ? t.end : today}">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>幣別（國外行程可改）</label>
+        <select id="mTripCur">${CURRENCIES.map(c => `<option value="${c}" ${t && t.currency === c ? 'selected' : (!t && c === 'NT$' ? 'selected' : '')}>${c}</option>`).join('')}</select>
+      </div>
+      <div class="field">
+        <label>匯率→台幣（選填）</label>
+        <input id="mTripRate" type="number" min="0" step="0.0001" placeholder="例：0.21" value="${t && t.rate ? t.rate : ''}">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>主要地區／城市（大幅提升地點定位準確度）</label>
+        <input id="mTripRegion" maxlength="30" placeholder="例如：香港、東京、曼谷" value="${t ? esc(t.region || '') : ''}">
+      </div>
+      <div class="field">
+        <label>總預算（選填）</label>
+        <input id="mTripBudget" type="number" min="0" placeholder="例如：50000" value="${t && t.budget ? t.budget : ''}">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn primary" onclick="saveTripModal('${id || ''}')">儲存</button>
+    </div>
+  `);
+  document.getElementById('mTripName').focus();
+}
+
+function saveTripModal(id) {
+  const name = document.getElementById('mTripName').value.trim();
+  const start = document.getElementById('mTripStart').value;
+  let end = document.getElementById('mTripEnd').value;
+  const budget = Number(document.getElementById('mTripBudget').value) || 0;
+  const currency = document.getElementById('mTripCur').value;
+  const rate = Number(document.getElementById('mTripRate').value) || 0;
+  const region = document.getElementById('mTripRegion').value.trim();
+  if (!name) return toast('請輸入行程名稱');
+  if (!start || !end) return toast('請選擇出發與回程日期');
+  if (end < start) { end = start; }
+
+  if (id) {
+    const t = getTrip(id);
+    Object.assign(t, { name, start, end, budget, currency, rate, region });
+    syncDays(t);
+    syncFlightActs(t);   // 日期可能變動 → 重新對齊航班活動到正確日期
+    save(); closeModal(); render();
+    rInfo(t);
+  } else {
+    const t = { id: uid(), name, start, end, budget, currency, rate, region, days: [] };
+    syncDays(t);
+    state.trips.push(t);
+    view = { page: 'trip', tripId: t.id, dayIndex: 0 };
+    save(); closeModal(); render();
+  }
+  toast(id ? '已更新行程' : '行程建立完成，開始加活動吧！');
+}
+
+/* ---- 活動 Modal ---- */
+let actModalCat = 'sight';
+function openActModal(di, ai) {
+  const trip = getTrip(view.tripId);
+  const act = ai !== undefined ? trip.days[di].acts[ai] : null;
+  actModalCat = act ? act.cat : 'sight';
+
+  const chips = Object.entries(CATS).map(([k, c]) =>
+    `<button class="cat-chip ${k === actModalCat ? 'sel' : ''}" data-cat="${k}"
+       style="${k === actModalCat ? 'background:' + c.color : ''}"
+       onclick="pickCat('${k}')">${c.name}</button>`).join('');
+
+  showModal(`
+    <h3>${act ? '編輯活動' : `新增活動（第 ${di + 1} 天）`}</h3>
+    <div class="field">
+      <label>活動名稱 *</label>
+      <input id="mActTitle" maxlength="60" placeholder="例如：淺草寺、一蘭拉麵" value="${act ? esc(act.title) : ''}">
+    </div>
+    <div class="field">
+      <label>分類</label>
+      <div class="cat-picker" id="catPicker">${chips}</div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>開始時間（選填）</label>
+        <input id="mActTime" type="time" value="${act && act.time ? act.time : ''}">
+      </div>
+      <div class="field">
+        <label>結束時間（選填）</label>
+        <input id="mActEnd" type="time" value="${act && act.endTime ? act.endTime : ''}">
+      </div>
+      <div class="field">
+        <label>費用（選填）</label>
+        <input id="mActCost" type="number" min="0" placeholder="0" value="${act && act.cost ? act.cost : ''}">
+      </div>
+    </div>
+    <div class="field">
+      <label>地點（選填）— 定位不準時，可貼 Google 的 <b>Plus Code</b> 或<b>座標</b>最精準</label>
+      <input id="mActLoc" maxlength="80" placeholder="地名 / 地址 / Plus Code（853C+F2 香港）/ 座標（22.30,114.17）" value="${act ? esc(act.loc || '') : ''}">
+    </div>
+    <div class="field">
+      <label>訂位 / 網址連結（選填，會變成可點連結）</label>
+      <input id="mActLink" maxlength="300" placeholder="例如：訂房或餐廳訂位網址" value="${act ? esc(act.link || '') : ''}">
+    </div>
+    <div class="field">
+      <label>備註（選填）</label>
+      <textarea id="mActNote" maxlength="500" placeholder="訂位資訊、注意事項…">${act ? esc(act.note || '') : ''}</textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn primary" onclick="saveActModal(${di},${ai !== undefined ? ai : -1})">儲存</button>
+    </div>
+  `);
+  document.getElementById('mActTitle').focus();
+}
+
+function pickCat(k) {
+  actModalCat = k;
+  document.querySelectorAll('#catPicker .cat-chip').forEach(ch => {
+    const on = ch.dataset.cat === k;
+    ch.classList.toggle('sel', on);
+    ch.style.background = on ? CATS[k].color : '';
+  });
+}
+
+function saveActModal(di, ai) {
+  const title = document.getElementById('mActTitle').value.trim();
+  if (!title) return toast('請輸入活動名稱');
+  const trip = getTrip(view.tripId);
+  const prev = ai >= 0 ? trip.days[di].acts[ai] : null;
+  const loc = document.getElementById('mActLoc').value.trim();
+  const locUnchanged = prev && prev.loc === loc;   // 地點沒改才保留手動修正的座標
+  const act = {
+    id: prev ? prev.id : uid(),
+    di,
+    order: prev ? (prev.order || 0) : Date.now(),
+    by: prev ? (prev.by || myName) : myName,
+    title,
+    cat: actModalCat,
+    time: document.getElementById('mActTime').value,
+    endTime: document.getElementById('mActEnd').value,
+    cost: Number(document.getElementById('mActCost').value) || 0,
+    loc,
+    link: document.getElementById('mActLink').value.trim(),
+    note: document.getElementById('mActNote').value.trim(),
+    travel: locUnchanged ? prev.travel : undefined,
+    flightKey: prev ? prev.flightKey : undefined,   // 保留航班標記，避免編輯後失聯
+    lat: locUnchanged ? prev.lat : undefined,
+    lon: locUnchanged ? prev.lon : undefined,
+  };
+  if (ai >= 0) trip.days[di].acts[ai] = act;
+  else trip.days[di].acts.push(act);
+  sortDay(trip.days[di]);
+  save(); closeModal(); render();
+  rAct(trip, act);
+}
+
+/* ---- 拖曳排序（拖完後清掉時間排序的鎖定 → 改為手動順序） ---- */
+/* 用上下箭頭調整順序（手機友善，不靠拖曳） */
+function moveAct(di, ai, dir) {
+  const trip = getTrip(view.tripId);
+  const acts = trip.days[di].acts;
+  const to = ai + dir;
+  if (to < 0 || to >= acts.length) return;
+  const [m] = acts.splice(ai, 1);
+  acts.splice(to, 0, m);
+  acts.forEach((a, i) => { a.order = i; a.di = di; });
+  save(); render();
+  if (isShared(trip)) acts.forEach(a => rAct(trip, a));
+}
+
+let dragIndex = null;
+function bindDrag(trip) {
+  const items = app.querySelectorAll('.act-item');
+  items.forEach(item => {
+    item.addEventListener('dragstart', e => {
+      dragIndex = Number(item.dataset.ai);
+      item.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    item.addEventListener('dragend', () => {
+      item.classList.remove('dragging');
+      items.forEach(i => i.classList.remove('drag-over'));
+    });
+    item.addEventListener('dragover', e => {
+      e.preventDefault();
+      item.classList.add('drag-over');
+    });
+    item.addEventListener('dragleave', () => item.classList.remove('drag-over'));
+    item.addEventListener('drop', e => {
+      e.preventDefault();
+      const to = Number(item.dataset.ai);
+      if (dragIndex === null || dragIndex === to) return;
+      const acts = trip.days[view.dayIndex].acts;
+      const [moved] = acts.splice(dragIndex, 1);
+      acts.splice(to, 0, moved);
+      // 重排後重新編號 order，並確保每個活動的「第幾天」正確（避免上傳後跑掉）
+      acts.forEach((a, i) => { a.order = i; a.di = view.dayIndex; });
+      dragIndex = null;
+      save(); render();
+      if (isShared(trip)) acts.forEach(a => rAct(trip, a));
+    });
+  });
+}
+
+/* ===================== 使用小提醒 ===================== */
+function showTips() {
+  showModal(`
+    <h3>💡 使用小提醒</h3>
+    <ul class="tips-list">
+      <li><span class="t-icon">📍</span><span><b>地點寫法：</b>先在行程「✏️ 編輯」填<b>主要地區</b>（如 香港），定位會更準。遇到 OSM 查不到的店家（如小飯店），直接貼 Google 的 <b>Plus Code</b>（如 <code>853C+F2 香港</code>）或<b>座標</b>（<code>22.30,114.17</code>）就能精準定位——在 Google 地圖點該地點即可看到 Plus Code。</span></li>
+      <li><span class="t-icon">⏱️</span><span><b>估路線：</b>需要網路連線（用免費 OpenStreetMap 服務，免金鑰）。在每天面板按「⏱️ 估路線」，會自動算出相鄰景點間的車程。</span></li>
+      <li><span class="t-icon">🚗</span><span><b>時間誤差：</b>估算採固定車速、無即時路況，通常比 Google 地圖<b>多 10～15%</b>，屬偏保守估計——排行程反而安全。想看精確時間，點活動的 📍 地點連結直接開 Google 地圖。</span></li>
+      <li><span class="t-icon">↕️</span><span><b>排序：</b>有填時間的活動會自動按時間排；要手動調整順序用每個活動的 <b>▲ ▼</b> 按鈕（手機也好用），電腦也可直接拖曳。改動順序後記得重按「估路線」更新車程。</span></li>
+      <li><span class="t-icon">✈️</span><span><b>航班：</b>按「✈️ 航班」填去回程班機、起飛/抵達時間，再填「到機場通勤」與「報到/安檢預留」，工具會自動算出<b>建議幾點出門</b>與飛行時間，並<b>自動把航班排進對應日期的行程時間軸</b>（改航班會自動更新、不重複）。時間請填當地時間。</span></li>
+      <li><span class="t-icon">🤝</span><span><b>多人共編：</b>按「🤝 共編」首次貼上 Firebase 設定（免費、只設一次），會產生<b>邀請連結</b>；同伴點開就能一起加各自想去的地點、即時同步，每個項目會標上是誰加的。</span></li>
+      <li><span class="t-icon">🧭</span><span><b>最短路徑：</b>大家把想去的點都加好後，按某天的「🧭 最短路徑」，工具會用真實路網算出<b>最省車程的走訪順序</b>並重排（會清掉固定時間）。建議至少 3 個有「地點」的活動。</span></li>
+      <li><span class="t-icon">📍</span><span><b>候選地點側欄：</b>行程右側可從 Google 地圖<b>匯入想去的點</b>（貼地名/連結，或上傳 Google Takeout、我的地圖 KML 檔），再<b>拖曳</b>或按「＋加入」放進某天，變成行程。</span></li>
+      <li><span class="t-icon">🗺️</span><span><b>地圖視覺化：</b>每天面板按「🗺️ 看地圖」，會把當天地點以<b>編號圖釘</b>（顏色依分類）標在地圖上、用路線連起來，候選地點顯示為灰點，一眼看出相對位置與動線。</span></li>
+      <li><span class="t-icon">🔗</span><span><b>加入別人的共編：</b>同伴給你邀請連結後，在首頁按「🔗 加入共編」貼上連結即可加入——就算大家各自開本機檔案也能一起編。</span></li>
+      <li><span class="t-icon">💰</span><span><b>分帳：</b>行程頁按「💰 分帳」，先加同行的人，再記每筆支出（誰付的、分給誰），工具自動算<b>每人結餘</b>與<b>最少筆數的還款方式</b>（誰給誰多少）。共編時帳目也即時同步。</span></li>
+      <li><span class="t-icon">🔖</span><span><b>活動結束時間 / 訂位連結：</b>編輯活動可填結束時間（自動算時長、提醒時間重疊）與訂位網址（變成可點連結）。</span></li>
+      <li><span class="t-icon">📲</span><span><b>裝成 App / 離線：</b>用瀏覽器選單「加到主畫面」可當 App 開；行程資料離線也看得到（地圖圖磚需網路）。</span></li>
+      <li><span class="t-icon">💱</span><span><b>國外行程：</b>在行程「✏️ 編輯」裡選幣別、填匯率，所有花費會自動附「約合台幣」。</span></li>
+      <li><span class="t-icon">💾</span><span><b>資料備份：</b>資料只存在這台裝置的瀏覽器裡。換電腦、清瀏覽器資料前，記得先按「📤 匯出」存備份檔，之後用「📥 匯入」還原。</span></li>
+    </ul>
+    <div class="modal-actions">
+      <button class="btn primary" onclick="closeModal()">知道了</button>
+    </div>
+  `);
+}
+document.getElementById('btnTips').onclick = showTips;
+
+/* ===================== 匯出 / 匯入 ===================== */
+document.getElementById('btnExport').onclick = () => {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `trip-planner-備份-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('已下載備份檔');
+};
+
+document.getElementById('btnImport').onclick = () => document.getElementById('fileImport').click();
+document.getElementById('fileImport').onchange = e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      if (!Array.isArray(data.trips)) throw new Error('格式不符');
+      if (!confirm(`匯入 ${data.trips.length} 個行程？將覆蓋目前所有資料。`)) return;
+      state = data;
+      save();
+      view = { page: 'list' };
+      render();
+      toast('匯入成功！');
+    } catch (err) {
+      toast('⚠️ 匯入失敗：不是有效的備份檔');
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+};
+
+/* 複製純文字版行程（方便貼到 LINE / 訊息分享） */
+function exportText(id) {
+  const trip = getTrip(id);
+  let lines = [`【${trip.name}】${fmtRange(trip)}`];
+
+  const ff = trip.flights || {};
+  [['out', '🛫 去程'], ['back', '🛬 回程']].forEach(([k, lbl]) => {
+    const f = ff[k];
+    if (!hasFlight(f)) return;
+    lines.push('');
+    lines.push(`${lbl} ${f.airline || ''}`.trim());
+    const dep = parseDT(f.depDate, f.depTime), arr = parseDT(f.arrDate, f.arrTime);
+    lines.push(`  ${f.depAirport || '出發'} ${dep ? fmtMD(dep) + ' ' : ''}${f.depTime || '--:--'} → ${f.arrAirport || '抵達'} ${arr ? fmtMD(arr) + ' ' : ''}${f.arrTime || '--:--'}`);
+    const lv = leaveTime(f);
+    const lead = (Number(f.checkin) || 0) + (Number(f.commute) || 0);
+    if (lv && lead > 0) lines.push(`  🏠 建議 ${k === 'out' ? fmtMD(lv) + ' ' : ''}${fmtHM(lv)} 出發（通勤 ${Number(f.commute) || 0}分＋報到安檢 ${Number(f.checkin) || 0}分）`);
+  });
+
+  trip.days.forEach((day, i) => {
+    const d = dayDate(trip, i);
+    lines.push('');
+    lines.push(`▍第 ${i + 1} 天 ${d.getMonth() + 1}/${d.getDate()}（${WEEKDAYS[d.getDay()]}）`);
+    if (!day.acts.length) lines.push('（無安排）');
+    day.acts.forEach(a => {
+      const tt = a.time ? (a.endTime ? `${a.time}–${a.endTime}` : a.time) : '--:--';
+      let l = `${tt} [${(CATS[a.cat] || CATS.other).name}] ${a.title}`;
+      if (Number(a.cost)) l += `（${money(trip, Number(a.cost))}）`;
+      if (a.travel) l = `　↓ 🚗 約 ${a.travel.mins} 分（${a.travel.km} km）\n` + l;
+      lines.push(l);
+      if (a.loc) lines.push(`        📍${a.loc}`);
+      if (a.link) lines.push(`        🔗${linkHref(a.link)}`);
+    });
+  });
+  const cost = tripCost(trip);
+  lines.push('');
+  lines.push(`總花費：${money(trip, cost)}${twdHint(trip, cost)}${trip.budget ? ` / 預算 ${money(trip, trip.budget)}` : ''}`);
+
+  const text = lines.join('\n');
+  navigator.clipboard.writeText(text).then(
+    () => toast('已複製行程文字，可直接貼上分享！'),
+    () => { // clipboard API 在 file:// 可能被擋，退回舊方法
+      const ta = document.createElement('textarea');
+      ta.value = text; document.body.appendChild(ta);
+      ta.select(); document.execCommand('copy');
+      ta.remove();
+      toast('已複製行程文字！');
+    }
+  );
+}
+
+/* ===================== 通用 UI ===================== */
+let modalEl = null;
+function showModal(inner) {
+  closeModal();
+  modalEl = document.createElement('div');
+  modalEl.className = 'modal-mask';
+  modalEl.innerHTML = `<div class="modal">${inner}</div>`;
+  modalEl.addEventListener('click', e => { if (e.target === modalEl) closeModal(); });
+  document.body.appendChild(modalEl);
+}
+function closeModal() {
+  if (modalEl) { modalEl.remove(); modalEl = null; }
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+});
+
+let toastTimer = null;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+}
+
+/* ===================== 啟動：處理共編邀請連結 ===================== */
+(function bootstrap() {
+  const params = new URLSearchParams(location.search);
+  let cfg = null;
+  const urlCfg = params.get('cfg');
+  if (urlCfg) { try { cfg = b64decode(urlCfg); } catch (e) {} }
+  if (!cfg) cfg = getFbConfig();
+  if (cfg) initFirebase(cfg);
+
+  const room = params.get('room');
+  if (room && db) {
+    ensureName();
+    let trip = state.trips.find(t => t.roomId === room);
+    const today = new Date().toISOString().slice(0, 10);
+    if (!trip) {
+      trip = { id: uid(), roomId: room, name: '共享行程', start: today, end: today,
+        budget: 0, currency: 'NT$', rate: 0, days: [] };
+      syncDays(trip);
+      state.trips.push(trip);
+    }
+    subscribeRoom(trip);
+    view = { page: 'trip', tripId: trip.id, dayIndex: 0 };
+    history.replaceState({}, '', location.pathname);  // 清掉網址參數
+    toast('已加入共編行程，載入中…');
+  }
+})();
+
+render();
+
+/* PWA：註冊 Service Worker（可安裝、離線可用；需 https 或 localhost） */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+}
+</script>
+</body>
+</html>

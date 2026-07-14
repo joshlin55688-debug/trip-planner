@@ -1,0 +1,15 @@
+{
+  "name": "行程規劃工具",
+  "short_name": "行程規劃",
+  "description": "多人即時共編的旅遊行程規劃工具：地圖、最短路徑、航班、分帳",
+  "lang": "zh-Hant",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f4f6fb",
+  "theme_color": "#3b6ef5",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
